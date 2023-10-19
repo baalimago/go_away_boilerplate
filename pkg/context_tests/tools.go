@@ -7,7 +7,7 @@ import (
 
 	"context"
 
-	"github.com/baalimago/testing_tools/pkg/general"
+	"github.com/baalimago/go_away_boilerplate/pkg/general"
 )
 
 // ReturnsOnContextCancel by creating a context and ensuring that the function returns
