@@ -1,23 +1,13 @@
-package general
+// testboil contains functions consistently reused for testing.
+// It doesn't have any dependencies except standard library and go_away_boilerplate
+package testboil
 
 import (
 	"sync"
 	"time"
+
+	"github.com/baalimago/go_away_boilerplate/pkg/threadsafe"
 )
-
-// RaceSafeWrite by locking the mutext before writing
-func RaceSafeWrite[T any](m *sync.Mutex, value T, dest *T) {
-	m.Lock()
-	defer m.Unlock()
-	*dest = value
-}
-
-// RaceSafeRead by locking the mutex before taking a copy, will then return the copy
-func RaceSafeRead[T any](m *sync.Mutex, src *T) T {
-	m.Lock()
-	defer m.Unlock()
-	return *src
-}
 
 // CheckEqualsWithinTimeout by polling at pollRate. Will at most block for timeout, when it will return false
 // in case that curr != want
@@ -30,7 +20,7 @@ func CheckEqualsWithinTimeout[T comparable](currMu *sync.Mutex, curr *T, want T,
 		case <-checkDone:
 			return false
 		case <-ticker.C:
-			if RaceSafeRead(currMu, curr) == want {
+			if threadsafe.Read(currMu, curr) == want {
 				return true
 			}
 		}

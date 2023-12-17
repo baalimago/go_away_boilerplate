@@ -1,4 +1,4 @@
-package context_tests
+package testboil
 
 import (
 	"context"

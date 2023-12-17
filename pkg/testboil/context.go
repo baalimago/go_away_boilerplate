@@ -1,13 +1,12 @@
-package context_tests
+package testboil
 
 import (
+	"context"
 	"sync"
 	"testing"
 	"time"
 
-	"context"
-
-	"github.com/baalimago/go_away_boilerplate/pkg/general"
+	"github.com/baalimago/go_away_boilerplate/pkg/threadsafe"
 )
 
 // ReturnsOnContextCancel by creating a context and ensuring that the function returns
@@ -29,12 +28,12 @@ func testPass(f func(context.Context), testTimeout time.Duration) bool {
 	go func() {
 		close(hasStarted)
 		f(testCtx)
-		general.RaceSafeWrite(isDoneMu, true, &isDone)
+		threadsafe.Write(isDoneMu, true, &isDone)
 	}()
 	<-hasStarted
 	testCtxCancel()
 	// Give 100 iterations to check if it has managed to quit
-	if general.CheckEqualsWithinTimeout(isDoneMu, &isDone, true, testTimeout, testTimeout/100) {
+	if CheckEqualsWithinTimeout(isDoneMu, &isDone, true, testTimeout, testTimeout/100) {
 		return true
 	}
 	return false
