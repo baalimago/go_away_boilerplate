@@ -30,14 +30,14 @@ func printStatus(out io.Writer, status, msg string, color colorCode) {
 	fmt.Fprintf(out, "%v: %v", status, msg)
 }
 
-func printErr(msg string) {
+func PrintErr(msg string) {
 	printStatus(os.Stderr, "error", msg, RED)
 }
 
-func printOK(msg string) {
+func PrintOK(msg string) {
 	printStatus(os.Stdout, "ok", msg, GREEN)
 }
 
-func printWarn(msg string) {
+func PrintWarn(msg string) {
 	printStatus(os.Stdout, "warning", msg, YELLOW)
 }
