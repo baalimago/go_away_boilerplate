@@ -3,6 +3,8 @@ package shutdowns
 import (
 	"context"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/baalimago/go_away_boilerplate/pkg/ancli"
 )
@@ -10,7 +12,9 @@ import (
 // MonitorShutdowns listens for a shutdown signal and cancels the context
 // if the signal is received. If the signal is received again, it will
 // force a shutdown.
-func MonitorShutdowns(signalCh chan os.Signal, cancel context.CancelFunc) {
+func MonitorShutdowns(cancel context.CancelFunc) {
+	signalCh := make(chan os.Signal, 1)
+	signal.Notify(signalCh, syscall.SIGINT, syscall.SIGTERM)
 	amountOfCancels := 0
 	for {
 		select {
