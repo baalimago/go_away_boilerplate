@@ -25,7 +25,7 @@ func Monitor(cancel context.CancelFunc) {
 			} else if amountOfCancels == 1 {
 				ancli.PrintWarn("graceful shutdown ongoing, cancel again to force shutdown\n")
 			} else {
-				ancli.PrintWarn("forcing shutdown\n")
+				ancli.PrintErr("forcing shutdown\n")
 				os.Exit(1)
 			}
 			amountOfCancels++
