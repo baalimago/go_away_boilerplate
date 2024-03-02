@@ -15,17 +15,20 @@ const (
 	RED colorCode = iota + 31
 	GREEN
 	YELLOW
+	BLUE
+	MAGENTA
+	CYAN
 )
 
 var useColor = os.Getenv("NO_COLOR") != "true"
 
-func coloredMessage(cc colorCode, msg string) string {
+func ColoredMessage(cc colorCode, msg string) string {
 	return fmt.Sprintf("\x1b[%dm%v\x1b[0m", cc, msg)
 }
 
 func printStatus(out io.Writer, status, msg string, color colorCode) {
 	if useColor {
-		status = coloredMessage(color, status)
+		status = ColoredMessage(color, status)
 	}
 	fmt.Fprintf(out, "%v: %v", status, msg)
 }
