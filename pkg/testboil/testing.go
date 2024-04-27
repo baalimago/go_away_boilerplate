@@ -15,3 +15,10 @@ func CreateTestFile(t *testing.T, fileName string) *os.File {
 	}
 	return file
 }
+
+func FailTestIfDiff[C comparable](t *testing.T, got, want C) {
+	t.Helper()
+	if got != want {
+		t.Fatalf("expected %v, got %v", want, got)
+	}
+}
