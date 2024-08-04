@@ -42,10 +42,30 @@ func PrintErr(msg string) {
 	printStatus(os.Stderr, "error", msg, RED)
 }
 
+func PrintfErr(msg string, a ...string) {
+	PrintErr(fmt.Sprintf(msg, a))
+}
+
 func PrintOK(msg string) {
 	printStatus(os.Stdout, "ok", msg, GREEN)
 }
 
+func PrintfOK(msg string, a ...string) {
+	PrintOK(fmt.Sprintf(msg, a))
+}
+
 func PrintWarn(msg string) {
 	printStatus(os.Stdout, "warning", msg, YELLOW)
+}
+
+func PrintfWarn(msg string, a ...string) {
+	PrintWarn(fmt.Sprintf(msg, a))
+}
+
+func PrintNotice(msg string) {
+	printStatus(os.Stdout, "notice", msg, CYAN)
+}
+
+func PrintfNotice(msg string, a ...string) {
+	PrintNotice(fmt.Sprintf(msg, a))
 }
