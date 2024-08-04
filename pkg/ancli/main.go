@@ -21,6 +21,7 @@ const (
 )
 
 var useColor = os.Getenv("NO_COLOR") != "true"
+var Newline = false
 
 func ColoredMessage(cc colorCode, msg string) string {
 	return fmt.Sprintf("\x1b[%dm%v\x1b[0m", cc, msg)
@@ -30,7 +31,11 @@ func printStatus(out io.Writer, status, msg string, color colorCode) {
 	if useColor {
 		status = ColoredMessage(color, status)
 	}
-	fmt.Fprintf(out, "%v: %v", status, msg)
+	newline := ""
+	if Newline {
+		newline = "\n"
+	}
+	fmt.Fprintf(out, "%v: %v%v", status, msg, newline)
 }
 
 func PrintErr(msg string) {
