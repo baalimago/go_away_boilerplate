@@ -27,3 +27,24 @@ func CaptureStdout(t *testing.T, do func(t *testing.T)) string {
 	w.Close()
 	return <-outC
 }
+
+// CaptureErr content and then restore it once the test is done
+func CaptureErr(t *testing.T, do func(t *testing.T)) string {
+	t.Helper()
+	orig := os.Stderr
+	t.Cleanup(func() {
+		os.Stderr = orig
+	})
+
+	r, w, _ := os.Pipe()
+	os.Stderr = w
+	do(t)
+	outC := make(chan string)
+	go func() {
+		var buf bytes.Buffer
+		io.Copy(&buf, r)
+		outC <- buf.String()
+	}()
+	w.Close()
+	return <-outC
+}
