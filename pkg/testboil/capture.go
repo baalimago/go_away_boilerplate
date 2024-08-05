@@ -28,8 +28,8 @@ func CaptureStdout(t *testing.T, do func(t *testing.T)) string {
 	return <-outC
 }
 
-// CaptureErr content and then restore it once the test is done
-func CaptureErr(t *testing.T, do func(t *testing.T)) string {
+// CaptureStdrer content and then restore it once the test is done
+func CaptureStdrer(t *testing.T, do func(t *testing.T)) string {
 	t.Helper()
 	orig := os.Stderr
 	t.Cleanup(func() {
