@@ -30,7 +30,7 @@ func Test_CaptureStderr(t *testing.T) {
 			t.Helper()
 			fmt.Fprint(os.Stderr, want)
 		}
-		got := CaptureStdrer(t, func(t *testing.T) {
+		got := CaptureStderr(t, func(t *testing.T) {
 			t.Helper()
 			stderrPrinter(t)
 		})
