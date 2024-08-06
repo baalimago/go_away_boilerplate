@@ -42,8 +42,8 @@ func PrintErr(msg string) {
 	printStatus(os.Stderr, "error", msg, RED)
 }
 
-func PrintfErr(msg string, a ...string) {
-	PrintErr(fmt.Sprintf(msg, a))
+func PrintfErr(msg string, a ...any) {
+	PrintErr(fmt.Sprintf(msg, a...))
 }
 
 func PrintOK(msg string) {
