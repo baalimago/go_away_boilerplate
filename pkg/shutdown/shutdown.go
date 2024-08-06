@@ -46,7 +46,7 @@ func MonitorV2(ctx context.Context, cancel context.CancelFunc) {
 			return
 		case <-signalCh:
 			if amountOfCancels == 0 {
-				ancli.PrintWarn("initiated forceful shutdown")
+				ancli.PrintWarn("initiating shutdown")
 				cancel()
 			} else if amountOfCancels == 1 {
 				ancli.PrintWarn("graceful shutdown ongoing, cancel again to force shutdown")
