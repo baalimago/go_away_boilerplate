@@ -47,7 +47,7 @@ func printStatus(out io.Writer, status, msg string, color colorCode) {
 		case "warn":
 			Slogger.Warn(fmsg)
 		default:
-			Slogger.Warn(fmt.Sprintf("failed to find status for: 'status', msg is: %v", fmsg))
+			Slogger.Warn(fmt.Sprintf("failed to find status for: '%v', msg is: %v", status, fmsg))
 		}
 	} else {
 		fmt.Fprintf(out, "%v: %v%v", status, msg, newline)
