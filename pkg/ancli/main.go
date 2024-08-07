@@ -38,13 +38,16 @@ func printStatus(out io.Writer, status, msg string, color colorCode) {
 		newline = "\n"
 	}
 	if Slogger != nil {
+		fmsg := fmt.Sprintf("%v: %v", status, msg)
 		switch status {
-		case "info", "notice":
-			Slogger.Info(fmt.Sprintf("%v: %v", status, msg))
+		case "ok", "notice":
+			Slogger.Info(fmsg)
 		case "error":
-			Slogger.Error(fmt.Sprintf("%v: %v", status, msg))
+			Slogger.Error(fmsg)
 		case "warn":
-			Slogger.Warn(fmt.Sprintf("%v: %v", status, msg))
+			Slogger.Warn(fmsg)
+		default:
+			Slogger.Warn(fmt.Sprintf("failed to find status for: 'status', msg is: %v", fmsg))
 		}
 	} else {
 		fmt.Fprintf(out, "%v: %v%v", status, msg, newline)
