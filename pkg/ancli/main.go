@@ -6,6 +6,7 @@ package ancli
 import (
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 )
 
@@ -22,6 +23,7 @@ const (
 
 var useColor = os.Getenv("NO_COLOR") != "true"
 var Newline = false
+var Slogger *slog.Logger
 
 func ColoredMessage(cc colorCode, msg string) string {
 	return fmt.Sprintf("\x1b[%dm%v\x1b[0m", cc, msg)
@@ -35,7 +37,18 @@ func printStatus(out io.Writer, status, msg string, color colorCode) {
 	if Newline {
 		newline = "\n"
 	}
-	fmt.Fprintf(out, "%v: %v%v", status, msg, newline)
+	if Slogger != nil {
+		switch status {
+		case "info", "notice":
+			Slogger.Info(fmt.Sprintf("%v: %v", status, msg))
+		case "error":
+			Slogger.Error(fmt.Sprintf("%v: %v", status, msg))
+		case "warn":
+			Slogger.Warn(fmt.Sprintf("%v: %v", status, msg))
+		}
+	} else {
+		fmt.Fprintf(out, "%v: %v%v", status, msg, newline)
+	}
 }
 
 func PrintErr(msg string) {
