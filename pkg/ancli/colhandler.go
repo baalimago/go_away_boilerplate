@@ -23,13 +23,13 @@ func (a *ansiprint) Handle(ctx context.Context, r slog.Record) error {
 
 	switch r.Level {
 	case slog.LevelDebug:
-		printStatus(os.Stdout, "debug", bf.String(), BLUE)
+		printStatus(os.Stdout, "debug", bf.String(), BLUE, true)
 	case slog.LevelInfo:
-		printStatus(os.Stdout, "ok", bf.String(), CYAN)
+		printStatus(os.Stdout, "ok", bf.String(), CYAN, true)
 	case slog.LevelWarn:
-		printStatus(os.Stdout, "warning", bf.String(), YELLOW)
+		printStatus(os.Stdout, "warning", bf.String(), YELLOW, true)
 	case slog.LevelError:
-		printStatus(os.Stdout, "error", bf.String(), RED)
+		printStatus(os.Stdout, "error", bf.String(), RED, true)
 	}
 	return nil
 }

@@ -34,7 +34,7 @@ func ColoredMessage(cc colorCode, msg string) string {
 	return fmt.Sprintf("\x1b[%dm%v\x1b[0m", cc, msg)
 }
 
-func printStatus(out io.Writer, status, msg string, color colorCode) {
+func printStatus(out io.Writer, status, msg string, color colorCode, noSlog bool) {
 	rawStatus := status
 	if useColor {
 		status = ColoredMessage(color, status)
@@ -43,7 +43,7 @@ func printStatus(out io.Writer, status, msg string, color colorCode) {
 	if Newline {
 		newline = "\n"
 	}
-	if SlogIt {
+	if SlogIt && !noSlog {
 		if slogger == nil {
 			SlogIt = false
 			PrintErr("you have to run ancli.SetupSlog in order to use slog printing, defaulting to normal print")
@@ -67,7 +67,7 @@ func printStatus(out io.Writer, status, msg string, color colorCode) {
 }
 
 func PrintErr(msg string) {
-	printStatus(os.Stderr, "error", msg, RED)
+	printStatus(os.Stderr, "error", msg, RED, false)
 }
 
 func PrintfErr(msg string, a ...any) {
@@ -75,7 +75,7 @@ func PrintfErr(msg string, a ...any) {
 }
 
 func PrintOK(msg string) {
-	printStatus(os.Stdout, "ok", msg, GREEN)
+	printStatus(os.Stdout, "ok", msg, GREEN, false)
 }
 
 func PrintfOK(msg string, a ...any) {
@@ -83,7 +83,7 @@ func PrintfOK(msg string, a ...any) {
 }
 
 func PrintWarn(msg string) {
-	printStatus(os.Stdout, "warning", msg, YELLOW)
+	printStatus(os.Stdout, "warning", msg, YELLOW, false)
 }
 
 func PrintfWarn(msg string, a ...any) {
@@ -91,7 +91,7 @@ func PrintfWarn(msg string, a ...any) {
 }
 
 func PrintNotice(msg string) {
-	printStatus(os.Stdout, "notice", msg, CYAN)
+	printStatus(os.Stdout, "notice", msg, CYAN, false)
 }
 
 func PrintfNotice(msg string, a ...any) {
