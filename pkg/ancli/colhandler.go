@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"time"
 )
 
 type ansiprint struct{}
@@ -18,7 +19,7 @@ func (a *ansiprint) Handle(ctx context.Context, r slog.Record) error {
 	var bf bytes.Buffer
 
 	if !r.Time.IsZero() {
-		fmt.Fprintf(&bf, "%v %v", r.Time.Format("2006-01-02T15:04Z+3"), r.Message)
+		fmt.Fprintf(&bf, "%v %v", r.Time.Format(time.RFC3339), r.Message)
 	}
 
 	switch r.Level {
