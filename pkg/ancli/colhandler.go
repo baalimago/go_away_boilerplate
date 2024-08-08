@@ -18,7 +18,7 @@ func (a *ansiprint) Handle(ctx context.Context, r slog.Record) error {
 	var bf bytes.Buffer
 
 	if !r.Time.IsZero() {
-		fmt.Fprintf(&bf, "%v %v", r.Time.Format("2006-01-02T15:04Z"), r.Message)
+		fmt.Fprintf(&bf, "%v %v", r.Time.Format("2006-01-02T15:04Z+3"), r.Message)
 	}
 
 	switch r.Level {

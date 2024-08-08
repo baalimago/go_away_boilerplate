@@ -49,7 +49,8 @@ func printStatus(out io.Writer, status, msg string, color colorCode) {
 			PrintErr("you have to run ancli.SetupSlog in order to use slog printing, defaulting to normal print")
 		}
 		if slogger != nil {
-			fmsg := fmt.Sprintf("%v: %v", status, msg)
+			// Always newline slog messages
+			fmsg := fmt.Sprintf("%v: %v\n", status, msg)
 			switch rawStatus {
 			case "ok", "notice":
 				slogger.Info(fmsg)
