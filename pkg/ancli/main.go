@@ -23,13 +23,19 @@ const (
 
 var useColor = os.Getenv("NO_COLOR") != "true"
 var Newline = false
-var Slogger *slog.Logger
+var SlogIt = false
+var slogger *slog.Logger
+
+func SetupSlog() {
+	slogger = slog.New(&ansiprint{})
+}
 
 func ColoredMessage(cc colorCode, msg string) string {
 	return fmt.Sprintf("\x1b[%dm%v\x1b[0m", cc, msg)
 }
 
 func printStatus(out io.Writer, status, msg string, color colorCode) {
+	rawStatus := status
 	if useColor {
 		status = ColoredMessage(color, status)
 	}
@@ -37,17 +43,23 @@ func printStatus(out io.Writer, status, msg string, color colorCode) {
 	if Newline {
 		newline = "\n"
 	}
-	if Slogger != nil {
-		fmsg := fmt.Sprintf("%v: %v", status, msg)
-		switch status {
-		case "ok", "notice":
-			Slogger.Info(fmsg)
-		case "error":
-			Slogger.Error(fmsg)
-		case "warn":
-			Slogger.Warn(fmsg)
-		default:
-			Slogger.Warn(fmt.Sprintf("failed to find status for: '%v', msg is: %v", status, fmsg))
+	if SlogIt {
+		if slogger == nil {
+			SlogIt = false
+			PrintErr("you have to run ancli.SetupSlog in order to use slog printing, defaulting to normal print")
+		}
+		if slogger != nil {
+			fmsg := fmt.Sprintf("%v: %v", status, msg)
+			switch rawStatus {
+			case "ok", "notice":
+				slogger.Info(fmsg)
+			case "error":
+				slogger.Error(fmsg)
+			case "warn":
+				slogger.Warn(fmsg)
+			default:
+				slogger.Warn(fmt.Sprintf("failed to find status for: '%v', msg is: %v", status, fmsg))
+			}
 		}
 	} else {
 		fmt.Fprintf(out, "%v: %v%v", status, msg, newline)
