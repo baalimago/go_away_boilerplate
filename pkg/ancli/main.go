@@ -56,7 +56,7 @@ func printStatus(out io.Writer, status, msg string, color colorCode) {
 				slogger.Info(fmsg)
 			case "error":
 				slogger.Error(fmsg)
-			case "warn":
+			case "warning":
 				slogger.Warn(fmsg)
 			default:
 				slogger.Warn(fmt.Sprintf("failed to find status for: '%v', msg is: %v", status, fmsg))
