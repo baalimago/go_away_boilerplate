@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"strings"
 )
 
 type colorCode int
@@ -22,7 +23,7 @@ const (
 )
 
 var useColor = os.Getenv("NO_COLOR") != "true"
-var Newline = false
+var Newline = false || strings.ToLower(os.Getenv("ANCLI_NEWLINE")) == "true"
 var SlogIt = false
 var slogger *slog.Logger
 
