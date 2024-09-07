@@ -9,6 +9,8 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+
+	"github.com/baalimago/go_away_boilerplate/pkg/misc"
 )
 
 type colorCode int
@@ -22,13 +24,17 @@ const (
 	CYAN
 )
 
-var useColor = os.Getenv("NO_COLOR") != "true"
-var Newline = false || strings.ToLower(os.Getenv("ANCLI_NEWLINE")) == "true"
-var SlogIt = false
-var slogger *slog.Logger
+var (
+	useColor      = os.Getenv("NO_COLOR") != "true"
+	printWarnings = !misc.Truthy(os.Getenv("NO_WARNINGS"))
+	Newline       = false || strings.ToLower(os.Getenv("ANCLI_NEWLINE")) == "true"
+	SlogIt        = false
+	slogger       *slog.Logger
+)
 
 func SetupSlog() {
 	slogger = slog.New(&ansiprint{})
+	SlogIt = true
 }
 
 func ColoredMessage(cc colorCode, msg string) string {
@@ -85,6 +91,9 @@ func PrintfOK(msg string, a ...any) {
 }
 
 func PrintWarn(msg string) {
+	if !printWarnings {
+		return
+	}
 	printStatus(os.Stdout, "warning", msg, YELLOW)
 }
 
