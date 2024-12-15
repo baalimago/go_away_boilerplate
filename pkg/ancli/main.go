@@ -82,11 +82,19 @@ func PrintfErr(msg string, a ...any) {
 	PrintErr(fmt.Sprintf(msg, a...))
 }
 
+func Errf(msg string, a ...any) {
+	PrintErr(fmt.Sprintf(msg, a...))
+}
+
 func PrintOK(msg string) {
 	printStatus(os.Stdout, "ok", msg, GREEN)
 }
 
 func PrintfOK(msg string, a ...any) {
+	PrintOK(fmt.Sprintf(msg, a...))
+}
+
+func Okf(msg string, a ...any) {
 	PrintOK(fmt.Sprintf(msg, a...))
 }
 
@@ -101,10 +109,18 @@ func PrintfWarn(msg string, a ...any) {
 	PrintWarn(fmt.Sprintf(msg, a...))
 }
 
+func Warnf(msg string, a ...any) {
+	PrintWarn(fmt.Sprintf(msg, a...))
+}
+
 func PrintNotice(msg string) {
 	printStatus(os.Stdout, "notice", msg, CYAN)
 }
 
 func PrintfNotice(msg string, a ...any) {
+	PrintNotice(fmt.Sprintf(msg, a...))
+}
+
+func Noticef(msg string, a ...any) {
 	PrintNotice(fmt.Sprintf(msg, a...))
 }
