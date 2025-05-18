@@ -3,6 +3,7 @@ package testboil
 import (
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -19,6 +20,12 @@ func CreateTestFile(t *testing.T, fileName string) *os.File {
 func FailTestIfDiff[C comparable](t *testing.T, got, want C) {
 	t.Helper()
 	if got != want {
-		t.Fatalf("expected %v, got %v", want, got)
+		t.Fatalf("Test failed, diff:\nwant: %-10v\n got: %-10v\n", want, got)
+	}
+}
+
+func AssertStringContains(t *testing.T, want, got string) {
+	if !strings.Contains(got, want) {
+		t.Fatalf("expected: '%v' to contain substring '%v'", got, want)
 	}
 }
