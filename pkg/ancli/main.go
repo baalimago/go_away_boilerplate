@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/baalimago/go_away_boilerplate/pkg/misc"
 )
@@ -30,9 +31,12 @@ var (
 	Newline       = false || strings.ToLower(os.Getenv("ANCLI_NEWLINE")) == "true"
 	SlogIt        = false
 	slogger       *slog.Logger
+	slogMu        = sync.Mutex{}
 )
 
 func SetupSlog() {
+	slogMu.Lock()
+	defer slogMu.Unlock()
 	slogger = slog.New(&ansiprint{})
 	SlogIt = true
 }
@@ -42,6 +46,8 @@ func ColoredMessage(cc colorCode, msg string) string {
 }
 
 func printStatus(out io.Writer, status, msg string, color colorCode) {
+	slogMu.Lock()
+	defer slogMu.Unlock()
 	rawStatus := status
 	if useColor {
 		status = ColoredMessage(color, status)
