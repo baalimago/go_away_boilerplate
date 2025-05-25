@@ -24,8 +24,9 @@ func FailTestIfDiff[C comparable](t *testing.T, got, want C) {
 	}
 }
 
-func AssertStringContains(t *testing.T, want, got string) {
-	if !strings.Contains(got, want) {
-		t.Fatalf("expected: '%v' to contain substring '%v'", got, want)
+func AssertStringContains(t *testing.T, this, shouldHave string) {
+	t.Helper()
+	if !strings.Contains(this, shouldHave) {
+		t.Fatalf("expected: '%v' to contain substring '%v'", this, shouldHave)
 	}
 }
