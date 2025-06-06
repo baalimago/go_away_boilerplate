@@ -5,13 +5,19 @@ import (
 	"io"
 	"os"
 	"testing"
+
+	"github.com/baalimago/go_away_boilerplate/pkg/ancli"
 )
 
 // CaptureStdout when do is called. Restore stdout as test cleanup
 func CaptureStdout(t *testing.T, do func(t *testing.T)) string {
+	ancli.OutMu.Lock()
 	t.Helper()
 	orig := os.Stdout
+	ancli.OutMu.Unlock()
 	t.Cleanup(func() {
+		ancli.OutMu.Lock()
+		defer ancli.OutMu.Unlock()
 		os.Stdout = orig
 	})
 
@@ -20,6 +26,8 @@ func CaptureStdout(t *testing.T, do func(t *testing.T)) string {
 	do(t)
 	outC := make(chan string)
 	go func() {
+		ancli.OutMu.Lock()
+		defer ancli.OutMu.Unlock()
 		var buf bytes.Buffer
 		io.Copy(&buf, r)
 		outC <- buf.String()

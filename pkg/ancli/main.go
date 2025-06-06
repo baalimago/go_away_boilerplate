@@ -32,6 +32,8 @@ var (
 	SlogIt        = false
 	slogger       *slog.Logger
 	slogMu        = sync.Mutex{}
+	OutMu         = sync.Mutex{}
+	ErrMut        = sync.Mutex{}
 )
 
 func SetupSlog() {
@@ -81,6 +83,8 @@ func printStatus(out io.Writer, status, msg string, color colorCode) {
 }
 
 func PrintErr(msg string) {
+	ErrMut.Lock()
+	defer ErrMut.Unlock()
 	printStatus(os.Stderr, "error", msg, RED)
 }
 
@@ -93,6 +97,8 @@ func Errf(msg string, a ...any) {
 }
 
 func PrintOK(msg string) {
+	OutMu.Lock()
+	defer OutMu.Unlock()
 	printStatus(os.Stdout, "ok", msg, GREEN)
 }
 
@@ -105,6 +111,8 @@ func Okf(msg string, a ...any) {
 }
 
 func PrintWarn(msg string) {
+	OutMu.Lock()
+	defer OutMu.Unlock()
 	if !printWarnings {
 		return
 	}
@@ -120,6 +128,8 @@ func Warnf(msg string, a ...any) {
 }
 
 func PrintNotice(msg string) {
+	OutMu.Lock()
+	defer OutMu.Unlock()
 	printStatus(os.Stdout, "notice", msg, CYAN)
 }
 
