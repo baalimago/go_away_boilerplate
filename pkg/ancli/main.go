@@ -65,7 +65,10 @@ func printStatus(out io.Writer, status, msg string, color colorCode) {
 		}
 		if slogger != nil {
 			// Always newline slog messages
-			fmsg := fmt.Sprintf("%v: %v\n", status, msg)
+			fmsg := fmt.Sprintf("%v: %v", status, msg)
+			if !strings.HasSuffix(msg, "\n") {
+				fmsg += "\n"
+			}
 			switch rawStatus {
 			case "ok", "notice":
 				slogger.Info(fmsg)
