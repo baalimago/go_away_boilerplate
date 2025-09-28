@@ -26,7 +26,7 @@ const (
 )
 
 var (
-	useColor      = os.Getenv("NO_COLOR") != "true"
+	UseColor      = os.Getenv("NO_COLOR") != "true"
 	printWarnings = !misc.Truthy(os.Getenv("NO_WARNINGS"))
 	Newline       = false || strings.ToLower(os.Getenv("ANCLI_NEWLINE")) == "true"
 	SlogIt        = false
@@ -51,7 +51,7 @@ func printStatus(out io.Writer, status, msg string, color colorCode) {
 	slogMu.Lock()
 	defer slogMu.Unlock()
 	rawStatus := status
-	if useColor {
+	if UseColor {
 		status = ColoredMessage(color, status)
 	}
 	newline := ""
