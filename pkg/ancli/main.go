@@ -34,6 +34,7 @@ var (
 	slogMu        = sync.Mutex{}
 	OutMu         = sync.Mutex{}
 	ErrMut        = sync.Mutex{}
+	Silent        = misc.Truthy(os.Getenv("SILENT"))
 )
 
 func SetupSlog() {
@@ -48,6 +49,9 @@ func ColoredMessage(cc colorCode, msg string) string {
 }
 
 func printStatus(out io.Writer, status, msg string, color colorCode) {
+	if Silent {
+		return
+	}
 	slogMu.Lock()
 	defer slogMu.Unlock()
 	rawStatus := status
