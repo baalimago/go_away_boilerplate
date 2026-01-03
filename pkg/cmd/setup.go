@@ -71,6 +71,10 @@ OUTER:
 	args = append(args[:cmdIdx], args[cmdIdx+1:]...)
 
 	fs := command.Flagset()
+	if fs == nil {
+		return nil, fmt.Errorf("flagset is nil, please define flagset")
+	}
+
 	// Strip found command
 	err := fs.Parse(args)
 	if err != nil {

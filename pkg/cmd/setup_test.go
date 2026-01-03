@@ -35,16 +35,14 @@ func (m *mockCommand) Setup(ctx context.Context) error {
 }
 
 func (m *mockCommand) Flagset() *flag.FlagSet {
-	if m.flagSet != nil {
-		return m.flagSet
-	}
-	return flag.NewFlagSet("test", flag.ContinueOnError)
+	return m.flagSet
 }
 
 func Test_Parse(t *testing.T) {
 	t.Run("it should return command if second argument specifies an existing command", func(t *testing.T) {
 		want := &mockCommand{
 			describeFunc: func() string { return "serve" },
+			flagSet:      flag.NewFlagSet("test", flag.ContinueOnError),
 		}
 		got, err := parse([]string{"/some/cli/path", "serve"}, map[string]Command{"serve": want})
 		if err != nil {
@@ -58,6 +56,7 @@ func Test_Parse(t *testing.T) {
 	t.Run("it should return command if second argument specifies shortcut of specific command", func(t *testing.T) {
 		want := &mockCommand{
 			describeFunc: func() string { return "serve" },
+			flagSet:      flag.NewFlagSet("test", flag.ContinueOnError),
 		}
 		got, err := parse([]string{"/some/cli/path", "serve"}, map[string]Command{"serve": want})
 		if err != nil {
@@ -85,6 +84,18 @@ func Test_Parse(t *testing.T) {
 		if !errors.Is(gotErr, ErrNoArgs) {
 			t.Fatalf("expected to get HelpfulError, got: %v", gotErr)
 		}
+	})
+
+	t.Run("it should error if flagset is nil", func(t *testing.T) {
+		want := &mockCommand{
+			describeFunc: func() string { return "serve" },
+			flagSet:      nil,
+		}
+		_, err := parse([]string{"/some/cli/path", "serve"}, map[string]Command{"serve": want})
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		testboil.AssertStringContains(t, err.Error(), "flagset is nil, please define flagset")
 	})
 }
 
@@ -201,6 +212,7 @@ func Test_Run(t *testing.T) {
 			setupFunc: func() error {
 				return errors.New("this no work")
 			},
+			flagSet: flag.NewFlagSet("test", flag.ContinueOnError),
 		},
 		"withError": &mockCommand{
 			runFunc:      func(ctx context.Context) error { return errors.New("here error") },
@@ -208,6 +220,7 @@ func Test_Run(t *testing.T) {
 			setupFunc: func() error {
 				return nil
 			},
+			flagSet: flag.NewFlagSet("test", flag.ContinueOnError),
 		},
 		"valid": &mockCommand{
 			runFunc:      func(ctx context.Context) error { return nil },
