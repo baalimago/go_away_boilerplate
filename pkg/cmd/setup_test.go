@@ -58,7 +58,7 @@ func Test_Parse(t *testing.T) {
 			describeFunc: func() string { return "serve" },
 			flagSet:      flag.NewFlagSet("test", flag.ContinueOnError),
 		}
-		got, err := parse([]string{"/some/cli/path", "serve"}, map[string]Command{"serve": want})
+		got, err := parse([]string{"/some/cli/path", "s"}, map[string]Command{"serve|s": want})
 		if err != nil {
 			t.Fatalf(": %v", err)
 		}
