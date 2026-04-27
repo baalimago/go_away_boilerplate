@@ -30,7 +30,7 @@ func CheckEqualsWithinTimeout[T comparable](currMu *sync.Mutex, curr *T, want T,
 
 // CheckTrueWithinTimeout polls callback at pollRate. It returns once callback returns true.
 // If callback never returns true before timeout, this helper fails the test.
-func CheckTrueWithinTimeout(t *testing.T, callback func() bool, timeout, pollRate time.Duration) {
+func CheckTrueWithinTimeout(t *testing.T, callback func(t *testing.T) bool, timeout, pollRate time.Duration) {
 	t.Helper()
 
 	checkDone := time.After(timeout)
@@ -41,7 +41,7 @@ func CheckTrueWithinTimeout(t *testing.T, callback func() bool, timeout, pollRat
 		case <-checkDone:
 			t.Fatalf("callback did not return true within timeout %v", timeout)
 		case <-ticker.C:
-			if callback() {
+			if callback(t) {
 				return
 			}
 		}
