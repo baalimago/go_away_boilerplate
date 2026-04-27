@@ -4,6 +4,7 @@ package testboil
 
 import (
 	"sync"
+	"testing"
 	"time"
 
 	"github.com/baalimago/go_away_boilerplate/pkg/threadsafe"
@@ -22,6 +23,26 @@ func CheckEqualsWithinTimeout[T comparable](currMu *sync.Mutex, curr *T, want T,
 		case <-ticker.C:
 			if threadsafe.Read(currMu, curr) == want {
 				return true
+			}
+		}
+	}
+}
+
+// CheckTrueWithinTimeout polls callback at pollRate. It returns once callback returns true.
+// If callback never returns true before timeout, this helper fails the test.
+func CheckTrueWithinTimeout(t *testing.T, callback func() bool, timeout, pollRate time.Duration) {
+	t.Helper()
+
+	checkDone := time.After(timeout)
+	ticker := time.NewTicker(pollRate)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-checkDone:
+			t.Fatalf("callback did not return true within timeout %v", timeout)
+		case <-ticker.C:
+			if callback() {
+				return
 			}
 		}
 	}

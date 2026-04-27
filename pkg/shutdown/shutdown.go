@@ -17,14 +17,18 @@ func Monitor(cancel context.CancelFunc) {
 	signal.Notify(signalCh, syscall.SIGINT, syscall.SIGTERM)
 	amountOfCancels := 0
 	for {
-		select {
-		case <-signalCh:
-			if amountOfCancels == 0 {
+		<-signalCh
+		for {
+			<-signalCh
+			switch amountOfCancels {
+			case 0:
 				ancli.PrintWarn("initiated forceful shutdown\n")
 				cancel()
-			} else if amountOfCancels == 1 {
-				ancli.PrintWarn("graceful shutdown ongoing, cancel again to force shutdown\n")
-			} else {
+			case 1:
+				ancli.PrintWarn(
+					"graceful shutdown ongoing, cancel again to force shutdown\n",
+				)
+			default:
 				ancli.PrintErr("forcing shutdown\n")
 				os.Exit(1)
 			}
@@ -45,16 +49,22 @@ func MonitorV2(ctx context.Context, cancel context.CancelFunc) {
 		case <-ctx.Done():
 			return
 		case <-signalCh:
-			if amountOfCancels == 0 {
-				ancli.PrintWarn("initiating shutdown")
-				cancel()
-			} else if amountOfCancels == 1 {
-				ancli.PrintWarn("graceful shutdown ongoing, cancel again to force shutdown")
-			} else {
-				ancli.PrintErr("forcing shutdown")
-				os.Exit(1)
+			for {
+				<-signalCh
+				switch amountOfCancels {
+				case 0:
+					ancli.PrintWarn("initiated forceful shutdown")
+					cancel()
+				case 1:
+					ancli.PrintWarn(
+						"graceful shutdown ongoing, cancel again to force shutdown",
+					)
+				default:
+					ancli.PrintErr("forcing shutdown")
+					os.Exit(1)
+				}
+				amountOfCancels++
 			}
-			amountOfCancels++
 		}
 	}
 }

@@ -9,8 +9,8 @@ import (
 func TestPointer(t *testing.T) {
 	tests := []struct {
 		name string
-		arg  interface{}
-		want interface{}
+		arg  any
+		want any
 	}{
 		{"int", 42, 42},
 		{"string", "hello", "hello"},
@@ -26,6 +26,9 @@ func TestPointer(t *testing.T) {
 			if got == nil {
 				t.Errorf("Pointer(%v) returned nil",
 					tt.arg)
+			}
+			if got != nil {
+				t.Fatalf("expected not nil: %v", got)
 			}
 			if *got != tt.want {
 				t.Errorf("Pointer(%v) = %v, "+

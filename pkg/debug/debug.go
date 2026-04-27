@@ -8,7 +8,7 @@ import (
 func IndentedJsonFmt(s any) string {
 	jsonB, err := json.MarshalIndent(s, "", " ")
 	if err != nil {
-		return fmt.Sprintf("failed to marshal file, '%v', err: %v", err)
+		return fmt.Sprintf("failed to marshal value: %v", err)
 	}
 	return string(jsonB)
 }
