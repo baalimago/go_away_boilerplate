@@ -15,7 +15,7 @@ func TestCheckTrueWithinTimeout(t *testing.T) {
 			calls.Store(1)
 		}()
 
-		CheckTrueWithinTimeout(t, func() bool {
+		CheckTrueWithinTimeout(t, func(t *testing.T) bool {
 			return calls.Load() == 1
 		}, 100*time.Millisecond, 5*time.Millisecond)
 	})
@@ -24,7 +24,7 @@ func TestCheckTrueWithinTimeout(t *testing.T) {
 		passed := !testPass(func(ctx context.Context) {
 			_ = ctx
 			mockT := &testing.T{}
-			CheckTrueWithinTimeout(mockT, func() bool {
+			CheckTrueWithinTimeout(mockT, func(t *testing.T) bool {
 				return false
 			}, 20*time.Millisecond, 5*time.Millisecond)
 		}, 100*time.Millisecond)
