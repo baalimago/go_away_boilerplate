@@ -67,6 +67,9 @@ type paginatorFuncs[T any] struct {
 	findFn  func(start, offset int) ([]T, error)
 }
 
+func (pf paginatorFuncs[T]) totalAm() int                   { return pf.totalFn() }
+func (pf paginatorFuncs[T]) findPage(s, o int) ([]T, error) { return pf.findFn(s, o) }
+
 // Table is a generic, paginated, interactive table UI. Use New to create one,
 // chain With* methods to configure it, then call Run.
 type Table[T any] struct {
