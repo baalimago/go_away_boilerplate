@@ -38,8 +38,8 @@ type TableAction struct {
 
 // Paginator abstracts a pageable data source for the table.
 type Paginator[T any] interface {
-	totalAm() int
-	findPage(start, offset int) ([]T, error)
+	Total() int
+	FindPage(start, offset int) ([]T, error)
 }
 
 // SlicePaginator wraps a slice as a Paginator.
@@ -67,8 +67,8 @@ type paginatorFuncs[T any] struct {
 	findFn  func(start, offset int) ([]T, error)
 }
 
-func (pf paginatorFuncs[T]) totalAm() int                   { return pf.totalFn() }
-func (pf paginatorFuncs[T]) findPage(s, o int) ([]T, error) { return pf.findFn(s, o) }
+func (pf paginatorFuncs[T]) Total() int                     { return pf.totalFn() }
+func (pf paginatorFuncs[T]) FindPage(s, o int) ([]T, error) { return pf.findFn(s, o) }
 
 // Table is a generic, paginated, interactive table UI. Use New to create one,
 // chain With* methods to configure it, then call Run.
@@ -288,12 +288,12 @@ func (t *table[T]) printRow(i int, item T) error {
 }
 
 func (t *table[T]) print() (int, error) {
-	totalItems := t.paginator.totalAm()
+	totalItems := t.paginator.Total()
 	pageIndex := t.page * t.pageSize
 	listToIndex := min(pageIndex+t.pageSize, totalItems)
 
 	amPrinted := 0
-	items, err := t.paginator.findPage(pageIndex, t.pageSize)
+	items, err := t.paginator.FindPage(pageIndex, t.pageSize)
 	if err != nil {
 		return 0, fmt.Errorf("failed to find page with pageIndex: %v, pageSize: %v. Error was: %w", pageIndex, t.pageSize, err)
 	}
@@ -331,7 +331,7 @@ func (t *table[T]) promptLine() string {
 		if t.predicateActive && t.activePredicateEmptyMessage != "" {
 			return fmt.Sprintf("(%s, %s): ", strings.Join(parts, ", "), t.activePredicateEmptyMessage)
 		}
-		if t.filteredIndices != nil && t.paginator.totalAm() == 0 {
+		if t.filteredIndices != nil && t.paginator.Total() == 0 {
 			return fmt.Sprintf("(%s, no matches): ", strings.Join(parts, ", "))
 		}
 		return fmt.Sprintf("(%s): ", strings.Join(parts, ", "))
@@ -481,10 +481,10 @@ func tableActionKeys(action TableAction) []string {
 }
 
 func (t *table[T]) pageCount() int {
-	if t.pageSize <= 0 || t.paginator.totalAm() <= 0 {
+	if t.pageSize <= 0 || t.paginator.Total() <= 0 {
 		return 0
 	}
-	return (t.paginator.totalAm() - 1) / t.pageSize
+	return (t.paginator.Total() - 1) / t.pageSize
 }
 
 func (t *table[T]) multiPartParse(maybeRange string) ([]int, error) {
@@ -506,7 +506,7 @@ func (t *table[T]) multiPartParse(maybeRange string) ([]int, error) {
 	}
 	selectedNumbers := make([]int, 0)
 	for i := start; i <= end; i++ {
-		if i > t.paginator.totalAm() {
+		if i > t.paginator.Total() {
 			return selectedNumbers, nil
 		}
 		selectedNumbers = append(selectedNumbers, i)
@@ -523,7 +523,7 @@ func (t *table[T]) applyFilter() error {
 		return nil
 	}
 
-	totalAm := t.originalPaginator.totalAm()
+	totalAm := t.originalPaginator.Total()
 	if totalAm == 0 {
 		t.filteredIndices = nil
 		t.paginator = SlicePaginator([]T{})
@@ -532,7 +532,7 @@ func (t *table[T]) applyFilter() error {
 		return nil
 	}
 
-	allItems, err := t.originalPaginator.findPage(0, totalAm)
+	allItems, err := t.originalPaginator.FindPage(0, totalAm)
 	if err != nil {
 		return fmt.Errorf("failed to get items for filtering: %w", err)
 	}
@@ -565,8 +565,8 @@ func (t *table[T]) togglePredicateFilter(predicate func(any) bool) error {
 	}
 	t.filterString = ""
 
-	totalAm := t.originalPaginator.totalAm()
-	allItems, err := t.originalPaginator.findPage(0, totalAm)
+	totalAm := t.originalPaginator.Total()
+	allItems, err := t.originalPaginator.FindPage(0, totalAm)
 	if err != nil {
 		return fmt.Errorf("failed to get items for predicate filtering: %w", err)
 	}
@@ -628,7 +628,7 @@ func (t *table[T]) parseNumbersFromString(choice string) ([]int, error) {
 			parseErrors = append(parseErrors, fmt.Errorf("token: '%v' failed to parse to int: %w", tok, err))
 			continue
 		}
-		if v < 0 || v > t.paginator.totalAm() {
+		if v < 0 || v > t.paginator.Total() {
 			parseErrors = append(parseErrors, fmt.Errorf("index: '%v' is outside the range of items", v))
 			continue
 		}

@@ -21,8 +21,8 @@ type testPaginator struct {
 
 var _ Paginator[int] = testPaginator{}
 
-func (tp testPaginator) totalAm() int { return tp.total }
-func (tp testPaginator) findPage(start, offset int) ([]int, error) {
+func (tp testPaginator) Total() int { return tp.total }
+func (tp testPaginator) FindPage(start, offset int) ([]int, error) {
 	if tp.findErr != nil {
 		return nil, tp.findErr
 	}
@@ -1181,28 +1181,28 @@ func Test_Builder_customTheme(t *testing.T) {
 func TestSlicePaginator(t *testing.T) {
 	paginator := SlicePaginator([]int{10, 20, 30})
 
-	got, err := paginator.findPage(1, 2)
+	got, err := paginator.FindPage(1, 2)
 	if err != nil {
 		t.Fatalf("findPage() unexpected error: %v", err)
 	}
 	if !reflect.DeepEqual(got, []int{20, 30}) {
 		t.Fatalf("findPage() = %v, want %v", got, []int{20, 30})
 	}
-	if paginator.totalAm() != 3 {
-		t.Fatalf("totalAm() = %d, want 3", paginator.totalAm())
+	if paginator.Total() != 3 {
+		t.Fatalf("totalAm() = %d, want 3", paginator.Total())
 	}
 
-	_, err = paginator.findPage(-1, 1)
+	_, err = paginator.FindPage(-1, 1)
 	if err == nil || !strings.Contains(err.Error(), "start index -1 below zero") {
 		t.Fatalf("negative start error = %v, want wrapped bounds error", err)
 	}
 
-	_, err = paginator.findPage(0, -1)
+	_, err = paginator.FindPage(0, -1)
 	if err == nil || !strings.Contains(err.Error(), "offset -1 below zero") {
 		t.Fatalf("negative offset error = %v, want wrapped bounds error", err)
 	}
 
-	got, err = paginator.findPage(99, 1)
+	got, err = paginator.FindPage(99, 1)
 	if err != nil {
 		t.Fatalf("out-of-range page unexpected error: %v", err)
 	}
@@ -1231,8 +1231,8 @@ func Test_table_applyFilter(t *testing.T) {
 		if tab.filteredIndices != nil {
 			t.Fatal("filteredIndices not nil after clearing")
 		}
-		if tab.paginator.totalAm() != 3 {
-			t.Fatalf("total after clear = %d, want 3", tab.paginator.totalAm())
+		if tab.paginator.Total() != 3 {
+			t.Fatalf("total after clear = %d, want 3", tab.paginator.Total())
 		}
 	})
 
@@ -1256,7 +1256,7 @@ func Test_table_applyFilter(t *testing.T) {
 			t.Fatalf("filteredIndices = %v, want %v", tab.filteredIndices, wantIndices)
 		}
 
-		gotItems, err := tab.paginator.findPage(0, 10)
+		gotItems, err := tab.paginator.FindPage(0, 10)
 		if err != nil {
 			t.Fatalf("findPage() error: %v", err)
 		}
@@ -1268,8 +1268,8 @@ func Test_table_applyFilter(t *testing.T) {
 		if tab.page != 0 {
 			t.Fatalf("page = %d, want 0 (reset on filter)", tab.page)
 		}
-		if tab.paginator.totalAm() != 2 {
-			t.Fatalf("total = %d, want 2", tab.paginator.totalAm())
+		if tab.paginator.Total() != 2 {
+			t.Fatalf("total = %d, want 2", tab.paginator.Total())
 		}
 	})
 
@@ -1291,8 +1291,8 @@ func Test_table_applyFilter(t *testing.T) {
 		if len(tab.filteredIndices) != 0 {
 			t.Fatalf("filteredIndices = %v, want empty", tab.filteredIndices)
 		}
-		if tab.paginator.totalAm() != 0 {
-			t.Fatalf("total = %d, want 0", tab.paginator.totalAm())
+		if tab.paginator.Total() != 0 {
+			t.Fatalf("total = %d, want 0", tab.paginator.Total())
 		}
 	})
 
@@ -1355,16 +1355,16 @@ func Test_table_applyFilter(t *testing.T) {
 		if err := tab.applyFilter(); err != nil {
 			t.Fatalf("first applyFilter() error: %v", err)
 		}
-		if tab.paginator.totalAm() != 1 {
-			t.Fatalf("filtered total = %d, want 1", tab.paginator.totalAm())
+		if tab.paginator.Total() != 1 {
+			t.Fatalf("filtered total = %d, want 1", tab.paginator.Total())
 		}
 
 		tab.filterString = ""
 		if err := tab.applyFilter(); err != nil {
 			t.Fatalf("clear applyFilter() error: %v", err)
 		}
-		if tab.paginator.totalAm() != 2 {
-			t.Fatalf("cleared total = %d, want 2", tab.paginator.totalAm())
+		if tab.paginator.Total() != 2 {
+			t.Fatalf("cleared total = %d, want 2", tab.paginator.Total())
 		}
 		if tab.filteredIndices != nil {
 			t.Fatal("filteredIndices not nil after clear")
@@ -1384,8 +1384,8 @@ func Test_table_applyFilter(t *testing.T) {
 		if err := tab.applyFilter(); err != nil {
 			t.Fatalf("applyFilter() error: %v", err)
 		}
-		if tab.paginator.totalAm() != 0 {
-			t.Fatalf("total = %d, want 0", tab.paginator.totalAm())
+		if tab.paginator.Total() != 0 {
+			t.Fatalf("total = %d, want 0", tab.paginator.Total())
 		}
 		if tab.filteredIndices != nil {
 			t.Fatal("filteredIndices should be nil for empty paginator")
@@ -1423,8 +1423,8 @@ func Test_table_selectNumbers_filterPrefix(t *testing.T) {
 		if tab.filterString != "test" {
 			t.Fatalf("filterString = %q, want %q", tab.filterString, "test")
 		}
-		if tab.paginator.totalAm() != 1 {
-			t.Fatalf("filtered total = %d, want 1", tab.paginator.totalAm())
+		if tab.paginator.Total() != 1 {
+			t.Fatalf("filtered total = %d, want 1", tab.paginator.Total())
 		}
 
 		// Second call: select
@@ -1468,8 +1468,8 @@ func Test_table_selectNumbers_filterPrefix(t *testing.T) {
 		if tab.filteredIndices != nil {
 			t.Fatal("filteredIndices should be nil after clear")
 		}
-		if tab.paginator.totalAm() != 2 {
-			t.Fatalf("restored total = %d, want 2", tab.paginator.totalAm())
+		if tab.paginator.Total() != 2 {
+			t.Fatalf("restored total = %d, want 2", tab.paginator.Total())
 		}
 	})
 
@@ -1530,8 +1530,8 @@ func Test_table_selectNumbers_filterPrefix(t *testing.T) {
 		if got != nil {
 			t.Fatalf("first returned %v, want nil", got)
 		}
-		if tab.paginator.totalAm() != 5 {
-			t.Fatalf("filtered total = %d, want 5", tab.paginator.totalAm())
+		if tab.paginator.Total() != 5 {
+			t.Fatalf("filtered total = %d, want 5", tab.paginator.Total())
 		}
 
 		tab.input = strings.NewReader("n\n")
@@ -1600,8 +1600,8 @@ func Test_table_togglePredicateFilter(t *testing.T) {
 		if !tab.predicateActive {
 			t.Fatal("expected predicateActive after toggle on")
 		}
-		if tab.paginator.totalAm() != 2 {
-			t.Fatalf("filtered total = %d, want 2", tab.paginator.totalAm())
+		if tab.paginator.Total() != 2 {
+			t.Fatalf("filtered total = %d, want 2", tab.paginator.Total())
 		}
 
 		tab.input = strings.NewReader("1\n")
@@ -1631,8 +1631,8 @@ func Test_table_togglePredicateFilter(t *testing.T) {
 		if tab.filteredIndices != nil {
 			t.Fatal("expected filteredIndices nil after clear")
 		}
-		if tab.paginator.totalAm() != 4 {
-			t.Fatalf("restored total = %d, want 4", tab.paginator.totalAm())
+		if tab.paginator.Total() != 4 {
+			t.Fatalf("restored total = %d, want 4", tab.paginator.Total())
 		}
 	})
 
