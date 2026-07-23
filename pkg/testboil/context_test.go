@@ -25,9 +25,7 @@ func Test_ReturnOnContextCancel(t *testing.T) {
 		{
 			desc: "it should pass on returning function",
 			given: func(ctx context.Context) {
-				select {
-				case <-ctx.Done():
-				}
+				<-ctx.Done()
 			},
 			want: true,
 		},

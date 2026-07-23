@@ -154,8 +154,7 @@ func TestMonitorV2_FirstSignalCancels(t *testing.T) {
 			count++
 			mu.Unlock()
 		}
-		ctx, ctxCancel := context.WithCancel(context.Background())
-		defer ctxCancel()
+		ctx := t.Context()
 		go MonitorV2(ctx, cancel)
 		time.Sleep(100 * time.Millisecond)
 		syscall.Kill(syscall.Getpid(), syscall.SIGINT)
@@ -186,7 +185,7 @@ func TestMonitorV2_SecondSignalDoesNotRecancel(t *testing.T) {
 			count++
 			mu.Unlock()
 		}
-		ctx, _ := context.WithCancel(context.Background())
+		ctx := context.Background()
 		go MonitorV2(ctx, cancel)
 		time.Sleep(100 * time.Millisecond)
 		syscall.Kill(syscall.Getpid(), syscall.SIGINT)

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"slices"
 	"strings"
 	"text/tabwriter"
 
@@ -38,6 +39,8 @@ func parse(args []string, commands map[string]Command) (Command, error) {
 	if len(args) <= 1 {
 		return nil, ErrNoArgs
 	}
+	// Copy to avoid mutating the caller's backing array.
+	args = slices.Clone(args)
 	// Strip binary from args to find first argument
 	args = args[1:]
 	var command Command
@@ -56,7 +59,7 @@ func parse(args []string, commands map[string]Command) (Command, error) {
 
 OUTER:
 	for cmdNameWithShortcut, cmd := range commands {
-		for _, cmdName := range strings.Split(cmdNameWithShortcut, "|") {
+		for cmdName := range strings.SplitSeq(cmdNameWithShortcut, "|") {
 			if cmdName == cmdCandidate {
 				command = cmd
 				break OUTER
