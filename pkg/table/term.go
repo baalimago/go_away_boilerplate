@@ -5,11 +5,10 @@ import (
 	"io"
 	"os"
 	"regexp"
-	"strconv"
 	"strings"
-	"syscall"
 	"unicode/utf8"
-	"unsafe"
+
+	"github.com/baalimago/go_away_boilerplate/pkg/dimensions"
 )
 
 var ansiEscapeSeq = regexp.MustCompile(`\x1b\[[0-9;]*m`)
@@ -38,39 +37,30 @@ func ClearTermTo(w io.Writer, upTo int) error {
 	return nil
 }
 
-// TermWidth returns the current terminal width in columns.
+// TermWidth returns the current terminal width in columns, measured on
+// stderr through the shared dimensions package.
 //
-// Prefers the COLUMNS environment variable if present and positive. Falls back
-// to ioctl(TIOCGWINSZ). When ioctl fails (e.g. in CI without a TTY), returns 80
-// as a sane default.
+// TermWidth is a compatibility wrapper: it preserves the historical silent
+// fallback. When the terminal size is unavailable (stderr is not a terminal,
+// the ioctl fails, or the terminal reports an unusable size), it returns
+// dimensions.Fallback.Width (80) and a nil error, exactly as the legacy
+// implementation did. The ioctl query and the fallback policy live in
+// pkg/dimensions; this wrapper only maps the wrapped ErrUnavailable to the
+// legacy fallback value. Callers that need terminal awareness use
+// pkg/dimensions directly and check errors.Is(err, dimensions.ErrUnavailable).
 func TermWidth() (int, error) {
-	if c := os.Getenv("COLUMNS"); c != "" {
-		if n, err := strconv.Atoi(c); err == nil && n > 0 {
-			return n, nil
-		}
-	}
+	return termWidth(dimensions.DefaultReader(os.Stderr.Fd()))
+}
 
-	ws := &struct {
-		Row    uint16
-		Col    uint16
-		Xpixel uint16
-		Ypixel uint16
-	}{}
-
-	retCode, _, _ := syscall.Syscall(
-		syscall.SYS_IOCTL,
-		uintptr(syscall.Stderr),
-		uintptr(syscall.TIOCGWINSZ),
-		uintptr(unsafe.Pointer(ws)),
-	)
-
-	if int(retCode) == -1 {
-		return 80, nil
+// termWidth is the injectable core of TermWidth. It projects a dimensions
+// read onto the width and maps every failure to the documented fallback, so
+// compatibility callers always receive usable output.
+func termWidth(read dimensions.Reader) (int, error) {
+	d, err := read()
+	if err != nil {
+		return dimensions.Fallback.Width, nil
 	}
-	if ws.Col == 0 {
-		return 80, nil
-	}
-	return int(ws.Col), nil
+	return d.Width, nil
 }
 
 // WidthAppropriateStringTrunc is a convenience wrapper around
@@ -90,16 +80,36 @@ func visibleRuneCount(s string) int {
 // terminal width, prepending prefix and inserting a " ... " infix when
 // truncation occurs. prefixColor and truncColor are raw ANSI sequences (or
 // empty). Colors are disabled when NO_COLOR is truthy.
+//
+// The width comes from TermWidth, so the legacy silent fallback applies when
+// no terminal size is available. Callers that already hold a dimensions
+// snapshot use WidthAppropriateStringTruncColoredWithWidth to avoid a second
+// terminal query.
 func WidthAppropriateStringTruncColored(toShorten, prefix, prefixColor, truncColor string, padding int) (string, error) {
-	toShorten = strings.ReplaceAll(toShorten, "\n", "\\n")
-	toShorten = strings.ReplaceAll(toShorten, "\t", "\\t")
-
 	termWidth, err := TermWidth()
 	if err != nil {
 		return "", fmt.Errorf("get term width: %w", err)
 	}
+	return WidthAppropriateStringTruncColoredWithWidth(toShorten, prefix, prefixColor, truncColor, padding, termWidth), nil
+}
 
-	return fillRemainderOfTermWidthColored(prefix, toShorten, prefixColor, truncColor, termWidth, padding), nil
+// WidthAppropriateStringTruncWithWidth is a convenience wrapper around
+// WidthAppropriateStringTruncColoredWithWidth with empty color arguments.
+// width is used exactly as given; no terminal query is performed.
+func WidthAppropriateStringTruncWithWidth(toShorten, prefix string, padding, width int) string {
+	return WidthAppropriateStringTruncColoredWithWidth(toShorten, prefix, "", "", padding, width)
+}
+
+// WidthAppropriateStringTruncColoredWithWidth truncates toShorten to fit
+// within width columns, prepending prefix and inserting a " ... " infix when
+// truncation occurs. It uses width exactly as supplied and never performs a
+// terminal query, so a caller can render one complete operation with a single
+// resolved dimension set. A zero or negative width clamps to the prefix only.
+func WidthAppropriateStringTruncColoredWithWidth(toShorten, prefix, prefixColor, truncColor string, padding, width int) string {
+	toShorten = strings.ReplaceAll(toShorten, "\n", "\\n")
+	toShorten = strings.ReplaceAll(toShorten, "\t", "\\t")
+
+	return fillRemainderOfTermWidthColored(prefix, toShorten, prefixColor, truncColor, width, padding)
 }
 
 func fillRemainderOfTermWidthColored(prefix, remainder, prefixColor, truncColor string, termWidth, padding int) string {

@@ -11,6 +11,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/baalimago/go_away_boilerplate/pkg/dimensions"
 )
 
 type testPaginator struct {
@@ -449,7 +451,6 @@ func Test_table_print(t *testing.T) {
 
 func Test_table_selectNumbers(t *testing.T) {
 	t.Setenv("NO_COLOR", "1")
-	t.Setenv("COLUMNS", "5")
 
 	tests := []struct {
 		name       string
@@ -1815,100 +1816,131 @@ func Test_ReadUserInputFrom(t *testing.T) {
 
 // --- TermWidth tests ---
 
+// Test_TermWidth covers the compatibility wrapper contract: termWidth maps a
+// dimensions read onto the width and applies the legacy fallback policy, so
+// any provider failure yields the documented fallback with a nil error.
 func Test_TermWidth(t *testing.T) {
-	t.Run("respects COLUMNS env", func(t *testing.T) {
-		t.Setenv("COLUMNS", "42")
-		w, err := TermWidth()
+	t.Run("returns width from provider", func(t *testing.T) {
+		w, err := termWidth(func() (dimensions.Dimensions, error) {
+			return dimensions.Dimensions{Width: 120, Height: 40}, nil
+		})
 		if err != nil {
-			t.Fatalf("TermWidth() error: %v", err)
+			t.Fatalf("termWidth() error: %v", err)
 		}
-		if w != 42 {
-			t.Fatalf("TermWidth() = %d, want 42", w)
+		if w != 120 {
+			t.Fatalf("termWidth() = %d, want 120", w)
 		}
 	})
 
-	t.Run("ignores invalid COLUMNS", func(t *testing.T) {
-		t.Setenv("COLUMNS", "not-a-number")
+	t.Run("provider failure maps to fallback", func(t *testing.T) {
+		w, err := termWidth(func() (dimensions.Dimensions, error) {
+			return dimensions.Dimensions{}, fmt.Errorf("no terminal: %w", dimensions.ErrUnavailable)
+		})
+		if err != nil {
+			t.Fatalf("termWidth() error = %v, want nil", err)
+		}
+		if w != dimensions.Fallback.Width {
+			t.Fatalf("termWidth() = %d, want %d", w, dimensions.Fallback.Width)
+		}
+	})
+
+	t.Run("delegates to the shared default reader on stderr", func(t *testing.T) {
+		// TermWidth must always return usable output: a positive width and a
+		// nil error whether stderr is a terminal, a pipe, or a file.
 		w, err := TermWidth()
 		if err != nil {
 			t.Fatalf("TermWidth() error: %v", err)
 		}
 		if w <= 0 {
-			t.Fatalf("TermWidth() = %d, want positive fallback", w)
-		}
-	})
-
-	t.Run("ignores negative COLUMNS", func(t *testing.T) {
-		t.Setenv("COLUMNS", "-5")
-		w, err := TermWidth()
-		if err != nil {
-			t.Fatalf("TermWidth() error: %v", err)
-		}
-		if w <= 0 {
-			t.Fatalf("TermWidth() = %d, want positive fallback", w)
+			t.Fatalf("TermWidth() = %d, want positive", w)
 		}
 	})
 }
 
 // --- WidthAppropriateStringTrunc tests ---
 
-func Test_WidthAppropriateStringTruncColored(t *testing.T) {
+func Test_WidthAppropriateStringTruncColoredWithWidth(t *testing.T) {
 	t.Setenv("NO_COLOR", "1")
-	t.Setenv("COLUMNS", "30")
 
 	t.Run("short string fits without truncation", func(t *testing.T) {
-		got, err := WidthAppropriateStringTruncColored("hello", "prefix: ", "", "", 0)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		got := WidthAppropriateStringTruncColoredWithWidth("hello", "prefix: ", "", "", 0, 30)
 		if got != "prefix: hello" {
 			t.Fatalf("got %q, want %q", got, "prefix: hello")
 		}
 	})
 
 	t.Run("long string gets truncated with infix", func(t *testing.T) {
-		got, err := WidthAppropriateStringTruncColored("this is a very long string that needs truncation", "[INFO] ", "", "", 0)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		got := WidthAppropriateStringTruncColoredWithWidth("this is a very long string that needs truncation", "[INFO] ", "", "", 0, 30)
 		if !strings.Contains(got, " ... ") {
 			t.Fatalf("got %q, want infix ' ... '", got)
 		}
 	})
 
-	t.Run("zero remaining width after prefix", func(t *testing.T) {
-		t.Setenv("COLUMNS", "10")
-		got, err := WidthAppropriateStringTruncColored("hello world", "prefix: ", "", "", 0)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		// prefix "prefix: " = 8 chars, termWidth=10, remaining=2, no infix
-		if !strings.Contains(got, "prefix: ") {
-			t.Fatalf("got %q, want prefix preserved", got)
-		}
-	})
-
 	t.Run("empty string works", func(t *testing.T) {
-		got, err := WidthAppropriateStringTruncColored("", "prefix: ", "", "", 0)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		got := WidthAppropriateStringTruncColoredWithWidth("", "prefix: ", "", "", 0, 30)
 		if got != "prefix: " {
 			t.Fatalf("got %q, want %q", got, "prefix: ")
 		}
 	})
 }
 
+// Test_WidthAppropriateStringTruncWithWidth_snapshotIsolation verifies that
+// each explicit width is used exactly as supplied: two calls with different
+// widths in the same operation produce different, width-consistent output and
+// no terminal query is involved.
+func Test_WidthAppropriateStringTruncWithWidth_snapshotIsolation(t *testing.T) {
+	t.Setenv("NO_COLOR", "1")
+	content := "hello world this is a long line"
+
+	narrow := WidthAppropriateStringTruncWithWidth(content, "p: ", 0, 12)
+	wide := WidthAppropriateStringTruncWithWidth(content, "p: ", 0, 200)
+
+	if !strings.Contains(narrow, " ... ") {
+		t.Fatalf("narrow width output %q, want infix ' ... '", narrow)
+	}
+	if wide != "p: "+content {
+		t.Fatalf("wide width output %q, want untruncated %q", wide, "p: "+content)
+	}
+}
+
+// Test_WidthAppropriateStringTruncWithWidth_clampsInvalidWidth verifies that
+// zero and negative widths clamp safely to the prefix instead of panicking or
+// producing partial output.
+func Test_WidthAppropriateStringTruncWithWidth_clampsInvalidWidth(t *testing.T) {
+	t.Setenv("NO_COLOR", "1")
+
+	for _, width := range []int{0, -5} {
+		got := WidthAppropriateStringTruncWithWidth("hello world", "p: ", 0, width)
+		if got != "p: " {
+			t.Fatalf("width %d: got %q, want prefix only %q", width, got, "p: ")
+		}
+	}
+}
+
+// Test_WidthAppropriateStringTrunc wrapper tests keep the legacy behavior
+// contract: a nil error and usable output regardless of whether stderr is a
+// terminal, so assertions never depend on the ambient terminal size.
 func Test_WidthAppropriateStringTrunc(t *testing.T) {
 	t.Setenv("NO_COLOR", "1")
-	t.Setenv("COLUMNS", "40")
 
 	got, err := WidthAppropriateStringTrunc("hello world", "p: ", 0)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if got != "p: hello world" {
-		t.Fatalf("got %q, want %q", got, "p: hello world")
+	if !strings.HasPrefix(got, "p: ") {
+		t.Fatalf("got %q, want prefix preserved", got)
+	}
+}
+
+func Test_WidthAppropriateStringTruncColored(t *testing.T) {
+	t.Setenv("NO_COLOR", "1")
+
+	got, err := WidthAppropriateStringTruncColored("hello world", "prefix: ", "", "", 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.HasPrefix(got, "prefix: ") {
+		t.Fatalf("got %q, want prefix preserved", got)
 	}
 }
 
@@ -2022,60 +2054,28 @@ func Test_ReadUserInputFrom_nilFallback(t *testing.T) {
 	}
 }
 
-func Test_TermWidth_ioctlFallback(t *testing.T) {
-	// Unset COLUMNS to force ioctl path
-	t.Setenv("COLUMNS", "")
-	w, err := TermWidth()
-	if err != nil {
-		t.Fatalf("TermWidth() error: %v", err)
-	}
-	// Should get either 80 (fallback) or actual terminal width
-	if w <= 0 {
-		t.Fatalf("TermWidth() = %d, want positive", w)
-	}
-}
-
 func Test_WidthAppropriateStringTruncColored_edgeCases(t *testing.T) {
 	t.Setenv("NO_COLOR", "1")
 
 	t.Run("remaining width equals infix length", func(t *testing.T) {
-		// "prefix: " = 8 chars, "..." infix has visible length 5
-		// termWidth=14 means remaining=6, infixLen=5 => remaining > infixLen but avail=1
-		// Actually we need: remainingWidth <= infixLen
-		// Set COLUMNS so that termWidth - visibleRuneCount(prefix) - padding = infixLen
-		// prefix "pre: " = 5 chars, termWidth=11 -> remaining=6, infix=5, avail=1
-		// Actually to hit the "remainingWidth <= infixLen" branch: remainingWidth MUST be <= infixLen
-		// infixLen = 5 (" ... ")
-		// Let's use prefix="p:" (2 chars), termWidth=7 -> remaining=5, infixLen=5
-		t.Setenv("COLUMNS", "7")
-		got, err := WidthAppropriateStringTruncColored("hello world", "p:", "", "", 0)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		// remainingWidth=5 <= infixLen=5, so first 5 runes of remainder
-		if !strings.HasPrefix(got, "p:") && strings.Contains(got, "hello") {
-			t.Fatalf("got %q", got)
+		// prefix "p:" (2 runes), width 7 -> remaining 5 == infixLen 5, so the
+		// first 5 runes of the remainder are kept without an infix.
+		got := WidthAppropriateStringTruncColoredWithWidth("hello world", "p:", "", "", 0, 7)
+		if got != "p:hello" {
+			t.Fatalf("got %q, want %q", got, "p:hello")
 		}
 	})
 
 	t.Run("newlines and tabs escaped", func(t *testing.T) {
-		t.Setenv("COLUMNS", "80")
-		got, err := WidthAppropriateStringTruncColored("hello\nworld\ttab", "", "", "", 0)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		got := WidthAppropriateStringTruncColoredWithWidth("hello\nworld\ttab", "", "", "", 0, 80)
 		if strings.Contains(got, "\n") || strings.Contains(got, "\t") {
 			t.Fatalf("newlines/tabs not escaped: %q", got)
 		}
 	})
 
 	t.Run("prefix with color", func(t *testing.T) {
-		t.Setenv("COLUMNS", "40")
 		t.Setenv("NO_COLOR", "") // enable colors
-		got, err := WidthAppropriateStringTruncColored("hello", "PREFIX", "\033[31m", "\033[34m", 0)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		got := WidthAppropriateStringTruncColoredWithWidth("hello", "PREFIX", "\033[31m", "\033[34m", 0, 40)
 		if !strings.Contains(got, "\033[31m") || !strings.Contains(got, "\033[34m") {
 			t.Fatalf("colors not applied: %q", got)
 		}
