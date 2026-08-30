@@ -52,9 +52,10 @@ func Test_flagOwners(t *testing.T) {
 	}
 }
 
-// Test_parse_misplacedSubLevelFlag pins the hint for the reported failure:
-// a sub-level value flag before the command makes its value look like the
-// command name, so the error must name the flag and where it belongs.
+// Test_parse_misplacedSubLevelFlag pins the hint for a sub-level flag
+// written before a command that cannot own it: the scan knows its arity, so
+// the value is no longer mistaken for the command name, and the error names
+// the flag and where it belongs.
 func Test_parse_misplacedSubLevelFlag(t *testing.T) {
 	_, err := parse([]string{"app", "-am", "some-model", "q", "hi"}, hintTree())
 
@@ -69,10 +70,13 @@ func Test_parse_misplacedSubLevelFlag(t *testing.T) {
 		t.Fatalf("owners: got %v", misplaced.Owners)
 	}
 	msg := err.Error()
-	for _, want := range []string{"-am", "audio transcribe", "some-model"} {
+	for _, want := range []string{"-am", "audio transcribe"} {
 		if !strings.Contains(msg, want) {
 			t.Fatalf("message %q missing %q", msg, want)
 		}
+	}
+	if strings.Contains(msg, "is not a valid argument") {
+		t.Fatalf("the value must no longer be blamed as the command name: %q", msg)
 	}
 }
 

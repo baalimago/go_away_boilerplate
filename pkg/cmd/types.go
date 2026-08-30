@@ -35,12 +35,15 @@ type Command interface {
 // Dispatch descends when the parent flagset's first positional matches a
 // subcommand key; Setup and Run fire only on the executed leaf, never on a
 // parent whose subcommand runs. An unmatched (or absent) first positional
-// leaves all args with the parent's own Setup/Run. Flag placement is
-// per-level: parent flags go before the sub name ("app chat -r list"),
-// sub flags after it ("app chat list -x") — a sub-level flag before the sub
-// name is an error, not a fallback. Each level is an independent flag
-// namespace, so a name or abbreviation may be reused with different meaning
-// or arity at different levels. A nil or empty map means no subcommands.
+// leaves all args with the parent's own Setup/Run. Each level is an
+// independent flag namespace, so a name or abbreviation may be reused with
+// different meaning or arity at different levels, but placement is
+// forgiving: a flag written at another level of the resolved path reaches
+// the level that defines it, so "app chat list -r", "app chat -r list" and
+// "app -r chat list" are equivalent. Where a name is defined at several
+// levels of one path, the shallowest owner takes it. A flag whose owner is
+// not on the resolved path fails with MisplacedFlagError. A nil or empty
+// map means no subcommands.
 type Subcommander interface {
 	Subcommands() map[string]Command
 }
@@ -56,11 +59,11 @@ func (e ArgNotFoundError) Error() string {
 	return fmt.Sprintf("'%v' is not a valid argument\n", string(e))
 }
 
-// MisplacedFlagError reports a flag used where it is not defined, naming
-// the command(s) that do define it. Flags are per-level (see Subcommander),
-// so a sub-level flag placed before its subcommand is an easy mistake: the
-// scan cannot know it takes a value, and its value is then read as the
-// command name.
+// MisplacedFlagError reports a flag whose owning command is not on the
+// resolved path, naming the command(s) that do define it. Flags written at
+// another level of the path are forwarded rather than reported (see
+// Subcommander); this is what remains: a flag that would configure a
+// command this run never reaches.
 type MisplacedFlagError struct {
 	// Flag as written by the user, dashes included.
 	Flag string

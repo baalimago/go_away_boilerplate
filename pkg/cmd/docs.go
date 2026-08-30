@@ -17,8 +17,8 @@
 // "query"), "--" ends flag parsing, a bare "-" is positional, and
 // "-name=value" consumes one token. If two commands define the same flag
 // name with different arity (bool vs value-taking), the scan treats it as
-// value-taking. The scan covers top-level flagsets only; each nesting
-// level is an independent flag namespace.
+// value-taking. The scan covers every registered flagset, nested levels
+// included.
 //
 // # Subcommands
 //
@@ -26,7 +26,10 @@
 // the parent flagset's first positional selects the subcommand, each level
 // parses its own flags, and Setup/Run fire only on the executed leaf. Help
 // for a Subcommander automatically appends its subcommand table (see
-// DescribeSubcommands).
+// DescribeSubcommands). Each level owns its flag namespace, but a flag
+// written at the wrong level is forwarded to the level on the resolved
+// path that defines it; one whose owner is never resolved fails with
+// MisplacedFlagError naming that owner.
 //
 // # Completion
 //
