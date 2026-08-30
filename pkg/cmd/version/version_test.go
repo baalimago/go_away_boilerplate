@@ -25,6 +25,20 @@ func TestCommand(t *testing.T) {
 	testboil.AssertStringContains(t, cmd.Help(), "print the version of")
 }
 
+func TestFlagsetMemoized(t *testing.T) {
+	cmd := Command()
+	fs := cmd.Flagset()
+	if fs != cmd.Flagset() {
+		t.Fatal("expected Flagset() to return the same instance on repeated calls")
+	}
+	if err := fs.Parse([]string{}); err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+	if !cmd.Flagset().Parsed() {
+		t.Fatal("expected Parse state to persist across Flagset() calls")
+	}
+}
+
 func TestRun(t *testing.T) {
 	cmd := Command()
 	ctx := context.Background()

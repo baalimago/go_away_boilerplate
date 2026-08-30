@@ -19,6 +19,7 @@ var (
 
 type command struct {
 	getVersionCmd func() (*debug.BuildInfo, bool)
+	flagset       *flag.FlagSet
 }
 
 // Describe the version *command
@@ -28,7 +29,10 @@ func (c *command) Describe() string {
 
 // Flagset for version, currently empty
 func (c *command) Flagset() *flag.FlagSet {
-	return flag.NewFlagSet("version", flag.ContinueOnError)
+	if c.flagset == nil {
+		c.flagset = flag.NewFlagSet("version", flag.ContinueOnError)
+	}
+	return c.flagset
 }
 
 // Help by printing out help

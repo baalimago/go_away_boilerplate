@@ -15,6 +15,7 @@ type mockCommand struct {
 	helpFunc     func() string
 	describeFunc func() string
 	setupFunc    func() error
+	setupCtxFunc func(context.Context) error
 	flagSet      *flag.FlagSet
 }
 
@@ -31,6 +32,9 @@ func (m *mockCommand) Describe() string {
 }
 
 func (m *mockCommand) Setup(ctx context.Context) error {
+	if m.setupCtxFunc != nil {
+		return m.setupCtxFunc(ctx)
+	}
 	return m.setupFunc()
 }
 
