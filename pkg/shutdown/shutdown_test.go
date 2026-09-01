@@ -231,3 +231,61 @@ func TestMonitorV2_ThirdSignalExits(t *testing.T) {
 		t.Fatalf("expected exit 1 (os.Exit), got %d", code)
 	}
 }
+
+// TestMonitorV2_SignalAfterCancelStillForcesExit covers the stuck-shutdown
+// path: the first signal cancels a real context, which returns MonitorV2 —
+// but the escalation ladder must survive that return. Before the detached
+// drainer, later signals were delivered to a channel nobody read (Notify
+// suppresses default handling), so a hung graceful shutdown was unkillable
+// short of SIGKILL.
+func TestMonitorV2_SignalAfterCancelStillForcesExit(t *testing.T) {
+	if os.Getenv("TEST_MV2_AFTER_CANCEL") == "1" {
+		ctx, cancel := context.WithCancel(context.Background())
+		go MonitorV2(ctx, cancel)
+		time.Sleep(100 * time.Millisecond)
+		syscall.Kill(syscall.Getpid(), syscall.SIGINT) // 1st: cancel → MonitorV2 returns
+		time.Sleep(100 * time.Millisecond)
+		syscall.Kill(syscall.Getpid(), syscall.SIGINT) // 2nd: warn
+		time.Sleep(100 * time.Millisecond)
+		syscall.Kill(syscall.Getpid(), syscall.SIGINT) // 3rd: os.Exit(1)
+		time.Sleep(500 * time.Millisecond)
+		os.Exit(0) // simulated stuck shutdown: should never reach
+	}
+	code, err := runInSubprocess(t, "TestMonitorV2_SignalAfterCancelStillForcesExit", "TEST_MV2_AFTER_CANCEL")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if code != 1 {
+		t.Fatalf("expected exit 1 (os.Exit), got %d", code)
+	}
+}
+
+// TestMonitorV2_NormalCompletionRestoresDefaultSignals covers the other
+// return path: when the context dies without any signal (the command simply
+// finished), MonitorV2 stops notification so a signal in the exit window
+// gets the OS default handling (death by SIGINT) instead of vanishing into
+// an unread channel.
+func TestMonitorV2_NormalCompletionRestoresDefaultSignals(t *testing.T) {
+	if os.Getenv("TEST_MV2_NORMAL_DONE") == "1" {
+		ctx, ctxCancel := context.WithCancel(context.Background())
+		done := make(chan struct{})
+		go func() {
+			MonitorV2(ctx, func() {})
+			close(done)
+		}()
+		time.Sleep(100 * time.Millisecond)
+		ctxCancel()
+		<-done
+		syscall.Kill(syscall.Getpid(), syscall.SIGINT)
+		time.Sleep(500 * time.Millisecond)
+		os.Exit(0) // should have died by SIGINT above
+	}
+	code, err := runInSubprocess(t, "TestMonitorV2_NormalCompletionRestoresDefaultSignals", "TEST_MV2_NORMAL_DONE")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Death by signal reports -1 through ExitCode, not a normal exit code.
+	if code != -1 {
+		t.Fatalf("expected signal death (-1), got exit code %d", code)
+	}
+}

@@ -306,3 +306,36 @@ func Test_Run(t *testing.T) {
 		})
 	}
 }
+
+// Test_Run_SetupReceivesRunContext pins that Setup gets the same lifecycle
+// context as Run, not a detached background one: state wired during Setup
+// (server BaseContexts, pollers) must die when the run context is cancelled.
+func Test_Run_SetupReceivesRunContext(t *testing.T) {
+	var setupCtx context.Context
+	commands := map[string]Command{
+		"probe": &mockCommand{
+			describeFunc: func() string { return "probe" },
+			setupCtxFunc: func(ctx context.Context) error {
+				setupCtx = ctx
+				return nil
+			},
+			runFunc: func(context.Context) error { return nil },
+			flagSet: flag.NewFlagSet("test", flag.ContinueOnError),
+		},
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	if code := Run(ctx, []string{"bin", "probe"}, commands, "usage"); code != 0 {
+		t.Fatalf("Run() = %v, want 0", code)
+	}
+	if setupCtx == nil {
+		t.Fatal("Setup was not called with a context")
+	}
+	if setupCtx.Err() != nil {
+		t.Fatalf("setup context already dead during Setup: %v", setupCtx.Err())
+	}
+	cancel()
+	if setupCtx.Err() == nil {
+		t.Fatal("cancelling the run context must cancel the context Setup received")
+	}
+}
