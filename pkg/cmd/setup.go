@@ -571,6 +571,9 @@ func formatCommandDescriptions(commands map[string]Command) string {
 	var buf bytes.Buffer
 	w := tabwriter.NewWriter(&buf, 0, 0, 2, ' ', 0)
 	for _, name := range slices.Sorted(maps.Keys(commands)) {
+		if IsHidden(commands[name]) {
+			continue
+		}
 		fmt.Fprintf(w, "\t%v\t%v\n", name, commands[name].Describe())
 	}
 	w.Flush()

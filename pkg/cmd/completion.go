@@ -196,7 +196,10 @@ func flagNames(resolved Command, commands map[string]Command) []string {
 
 func commandNames(commands map[string]Command) []string {
 	var names []string
-	for key := range commands {
+	for key, command := range commands {
+		if IsHidden(command) {
+			continue
+		}
 		names = append(names, strings.Split(key, "|")...)
 	}
 	return names
