@@ -37,12 +37,10 @@ func completionTree() map[string]Command {
 	listFs := flag.NewFlagSet("list", flag.ContinueOnError)
 	listFs.Bool("x", false, "")
 	chat := &mockSubcommander{
-		mockCommand: mockCommand{
-			describeFunc: func() string { return "manage chats" },
-			setupFunc:    panicSetup,
-			runFunc:      panicRun,
-			flagSet:      chatFs,
-		},
+		describeFunc: func() string { return "manage chats" },
+		setupFunc:    panicSetup,
+		runFunc:      panicRun,
+		flagSet:      chatFs,
 		subs: map[string]Command{
 			"list|l": &mockCommand{
 				describeFunc: func() string { return "list chats" },
@@ -63,12 +61,10 @@ func completionTree() map[string]Command {
 	qFs.String("cm", "", "")
 	qFs.String("f", "", "")
 	q := &mockCompleterCommand{
-		mockCommand: mockCommand{
-			describeFunc: func() string { return "query" },
-			setupFunc:    panicSetup,
-			runFunc:      panicRun,
-			flagSet:      qFs,
-		},
+		describeFunc: func() string { return "query" },
+		setupFunc:    panicSetup,
+		runFunc:      panicRun,
+		flagSet:      qFs,
 		flagValues: func(flagName, partial string) []CompletionItem {
 			switch flagName {
 			case "cm":

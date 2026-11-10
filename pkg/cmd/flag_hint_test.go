@@ -23,11 +23,9 @@ func hintTree() map[string]Command {
 		flagSet:      transcribeFs,
 	}
 	audio := &mockSubcommander{
-		mockCommand: mockCommand{
-			describeFunc: func() string { return "audio" },
-			flagSet:      flag.NewFlagSet("audio", flag.ContinueOnError),
-		},
-		subs: map[string]Command{"transcribe|t": transcribe},
+		describeFunc: func() string { return "audio" },
+		flagSet:      flag.NewFlagSet("audio", flag.ContinueOnError),
+		subs:         map[string]Command{"transcribe|t": transcribe},
 	}
 	query := &mockCommand{
 		describeFunc: func() string { return "query" },
@@ -85,12 +83,10 @@ func Test_parse_misplacedSubLevelFlag(t *testing.T) {
 func Test_parse_unknownCommandKeepsPlainError(t *testing.T) {
 	_, err := parse([]string{"app", "bogus"}, hintTree())
 
-	var misplaced MisplacedFlagError
-	if errors.As(err, &misplaced) {
+	if _, ok := errors.AsType[MisplacedFlagError](err); ok {
 		t.Fatalf("expected no hint, got %v", err)
 	}
-	var notFound ArgNotFoundError
-	if !errors.As(err, &notFound) {
+	if _, ok := errors.AsType[ArgNotFoundError](err); !ok {
 		t.Fatalf("expected ArgNotFoundError, got %v", err)
 	}
 }
@@ -115,8 +111,7 @@ func Test_parseFlagset_undefinedFlagHint(t *testing.T) {
 		t.Fatal("expected parse error")
 	}
 
-	var misplaced MisplacedFlagError
-	if !errors.As(err, &misplaced) {
+	if _, ok := errors.AsType[MisplacedFlagError](err); !ok {
 		t.Fatalf("expected MisplacedFlagError, got %v", err)
 	}
 	msg := err.Error()
@@ -134,11 +129,47 @@ func Test_parseFlagset_undefinedUnknownFlagStaysPlain(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected parse error")
 	}
-	var misplaced MisplacedFlagError
-	if errors.As(err, &misplaced) {
+	if _, ok := errors.AsType[MisplacedFlagError](err); ok {
 		t.Fatalf("expected no hint, got %v", err)
 	}
 	if !strings.Contains(err.Error(), "not defined") {
 		t.Fatalf("expected the stdlib message, got %q", err.Error())
+	}
+}
+
+// Test_MisplacedFlagError_reasonAndHint pins the parts of the message: the
+// reason, without the hint, and the hint, without its label, so a caller can
+// show the hint apart from the error.
+func Test_MisplacedFlagError_reasonAndHint(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		err        MisplacedFlagError
+		wantReason string
+		wantHint   string
+	}{
+		{
+			name:       "rejected by a command's flagset",
+			err:        MisplacedFlagError{Flag: "-am", Owners: []string{"audio transcribe"}, err: errors.New("failed to parse flagset: flag provided but not defined: -am")},
+			wantReason: "failed to parse flagset: flag provided but not defined: -am",
+			wantHint:   "'-am' belongs to 'audio transcribe' — place it there, after that command.",
+		},
+		{
+			name:       "value read as the command name",
+			err:        MisplacedFlagError{Flag: "-x", Owners: []string{"a", "b"}, Candidate: "val", err: ArgNotFoundError("val")},
+			wantReason: "'val' is not a valid argument: it was read as the command name because '-x' is not a flag at this level.",
+			wantHint:   "'-x' belongs to 'a' or 'b' — place it there, after that command.",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := tc.err.Reason(); got != tc.wantReason {
+				t.Fatalf("Reason() = %q, want %q", got, tc.wantReason)
+			}
+			if got := tc.err.Hint(); got != tc.wantHint {
+				t.Fatalf("Hint() = %q, want %q", got, tc.wantHint)
+			}
+			if got, want := tc.err.Error(), tc.wantReason+"\nHint: "+tc.wantHint+"\n"; got != want {
+				t.Fatalf("Error() = %q, want %q", got, want)
+			}
+		})
 	}
 }

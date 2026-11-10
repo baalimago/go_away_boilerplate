@@ -20,10 +20,8 @@ func forwardTree() (map[string]Command, *flag.FlagSet, *flag.FlagSet) {
 	audioFs.Bool("v", false, "verbose")
 	audioFs.Int("par", 0, "parallelism")
 	audio := &mockSubcommander{
-		mockCommand: mockCommand{
-			describeFunc: func() string { return "audio" },
-			flagSet:      audioFs,
-		},
+		describeFunc: func() string { return "audio" },
+		flagSet:      audioFs,
 		subs: map[string]Command{
 			"transcribe|t": &mockCommand{
 				describeFunc: func() string { return "transcribe" },
@@ -142,8 +140,7 @@ func Test_dispatch_unresolvedOwnerErrors(t *testing.T) {
 	} {
 		commands, _, _ := forwardTree()
 		_, err := dispatch(args, commands)
-		var misplaced MisplacedFlagError
-		if !errors.As(err, &misplaced) {
+		if _, ok := errors.AsType[MisplacedFlagError](err); !ok {
 			t.Fatalf("%v: expected MisplacedFlagError, got %v", args, err)
 		}
 		if !strings.Contains(err.Error(), "belongs to") {
@@ -161,8 +158,7 @@ func Test_dispatch_unknownFlagStaysPlain(t *testing.T) {
 	} {
 		commands, _, _ := forwardTree()
 		_, err := dispatch(args, commands)
-		var misplaced MisplacedFlagError
-		if errors.As(err, &misplaced) {
+		if _, ok := errors.AsType[MisplacedFlagError](err); ok {
 			t.Fatalf("%v: expected no hint, got %v", args, err)
 		}
 		if err == nil || !strings.Contains(err.Error(), "not defined") {
@@ -207,21 +203,17 @@ func Test_dispatch_forwardsThroughNestedLevels(t *testing.T) {
 	leafFs := flag.NewFlagSet("leaf", flag.ContinueOnError)
 	leafFs.String("deep", "", "deep flag")
 	middle := &mockSubcommander{
-		mockCommand: mockCommand{
-			describeFunc: func() string { return "middle" },
-			flagSet:      flag.NewFlagSet("middle", flag.ContinueOnError),
-		},
+		describeFunc: func() string { return "middle" },
+		flagSet:      flag.NewFlagSet("middle", flag.ContinueOnError),
 		subs: map[string]Command{"leaf|l": &mockCommand{
 			describeFunc: func() string { return "leaf" },
 			flagSet:      leafFs,
 		}},
 	}
 	top := &mockSubcommander{
-		mockCommand: mockCommand{
-			describeFunc: func() string { return "top" },
-			flagSet:      flag.NewFlagSet("top", flag.ContinueOnError),
-		},
-		subs: map[string]Command{"middle|m": middle},
+		describeFunc: func() string { return "top" },
+		flagSet:      flag.NewFlagSet("top", flag.ContinueOnError),
+		subs:         map[string]Command{"middle|m": middle},
 	}
 
 	command, err := dispatch([]string{"app", "-deep", "value", "top", "m", "l", "rest"}, map[string]Command{"top": top})

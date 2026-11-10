@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"os"
 	"slices"
 	"strings"
 	"text/tabwriter"
@@ -29,37 +30,97 @@ import (
 // level is on the resolved path. One written for a command this run never
 // reaches is an error naming its owner (MisplacedFlagError), since a flag
 // that configures nothing must not pass silently.
+//
+// Run prints what RunSilent returns: help on a help request, the error and
+// the usage on a dispatch failure, and the error on a setup or run failure.
 func Run(ctx context.Context, args []string, commands map[string]Command, usage string) int {
-	commands = withCompletion(binaryName(args), commands)
-	if len(args) > 1 && args[1] == "__complete" && matchCommand("__complete", commands) == nil {
-		return runComplete(args[2:], commands)
+	status, err := RunSilent(ctx, args, commands)
+	if err == nil || isUserInitiatedExit(err) {
+		return status
 	}
-	printUsage := func() {
-		ancli.Okf("%v", getUsage(usage, commands))
+	if help, ok := errors.AsType[HelpRequestedError](err); ok {
+		ancli.Noticef("[command help]: %v", help.Help)
+		return status
+	}
+	if stage, ok := errors.AsType[stageError](err); ok {
+		ancli.Errf("%v: %v", stage.stage, err.Error())
+		return status
+	}
+	return printHelp(nil, err, func() {
+		ancli.Okf("%v", getUsage(usage, withCompletion(binaryName(args), commands, os.Stdout)))
+	})
+}
+
+// RunSilent dispatches exactly as Run does but prints nothing: it returns
+// the exit status Run would exit with and the error behind it, for a caller
+// that presents errors itself.
+//
+//   - Success returns 0 and nil.
+//   - A setup or run failure returns 1 and the command's own error, whose
+//     text is unchanged and whose chain errors.Is and errors.As reach.
+//   - A user-initiated exit (ErrUserInitiatedExit or
+//     table.ErrUserInitiatedExit, wrapped or not) returns 0 and that error.
+//   - A help request (-h, -help) returns 0 and a HelpRequestedError holding
+//     the help text Run would print.
+//   - No command returns 1 and ErrNoArgs; any other dispatch failure, such
+//     as ArgNotFoundError or MisplacedFlagError, returns 1 and that error.
+//
+// Shell completion (the "__complete" command) still writes its candidates
+// to stdout, since they are its result, and returns 0 and nil.
+func RunSilent(ctx context.Context, args []string, commands map[string]Command) (int, error) {
+	return RunSilentTo(ctx, args, commands, os.Stdout)
+}
+
+// RunSilentTo is RunSilent with the writer completion output goes to: the
+// "__complete" candidates and the built-in completion command's script are
+// written to out instead of stdout. A failed write of a candidate returns 1
+// and the write error.
+func RunSilentTo(ctx context.Context, args []string, commands map[string]Command, out io.Writer) (int, error) {
+	commands = withCompletion(binaryName(args), commands, out)
+	if len(args) > 1 && args[1] == "__complete" && matchCommand("__complete", commands) == nil {
+		return runComplete(args[2:], commands, out)
 	}
 	command, err := dispatch(args, commands)
 	if err != nil {
-		return printHelp(command, err, printUsage)
-	}
-
-	err = command.Setup(ctx)
-	if err != nil {
-		if isUserInitiatedExit(err) {
-			return 0
+		if errors.Is(err, flag.ErrHelp) && command != nil {
+			return 0, HelpRequestedError{Help: helpText(command)}
 		}
-		ancli.Errf("failed to setup command: %v", err.Error())
-		return 1
+		return 1, err
 	}
+	if err := command.Setup(ctx); err != nil {
+		return failureStatus(err), stageError{stage: "failed to setup command", err: err}
+	}
+	if err := command.Run(ctx); err != nil {
+		return failureStatus(err), stageError{stage: "failed to run", err: err}
+	}
+	return 0, nil
+}
 
-	err = command.Run(ctx)
-	if err != nil {
-		if isUserInitiatedExit(err) {
-			return 0
-		}
-		ancli.Errf("failed to run: %v", err.Error())
-		return 1
+func failureStatus(err error) int {
+	if isUserInitiatedExit(err) {
+		return 0
 	}
-	return 0
+	return 1
+}
+
+// stageError marks which stage a command failed in, for Run's message,
+// without changing the command's error text or chain.
+type stageError struct {
+	stage string
+	err   error
+}
+
+func (e stageError) Error() string { return e.err.Error() }
+
+func (e stageError) Unwrap() error { return e.err }
+
+// IsCommandFailure reports whether err, as RunSilent or RunSilentTo
+// returned it, is the failure of a dispatched command's Setup or Run,
+// including the built-in completion command's, rather than a dispatch
+// failure. Run prints the usage only after a dispatch failure.
+func IsCommandFailure(err error) bool {
+	_, ok := errors.AsType[stageError](err)
+	return ok
 }
 
 func isUserInitiatedExit(err error) bool {
@@ -183,8 +244,8 @@ func ancestorFlag(ancestors []Command, name string) *flag.Flag {
 }
 
 func ancestorFlagset(ancestors []Command, name string) *flag.FlagSet {
-	for i := len(ancestors) - 1; i >= 0; i-- {
-		fs := ancestors[i].Flagset()
+	for _, ancestor := range slices.Backward(ancestors) {
+		fs := ancestor.Flagset()
 		if fs != nil && fs.Lookup(name) != nil {
 			return fs
 		}
@@ -491,11 +552,9 @@ func findCommandCandidate(args []string, valueFlags map[string]bool) (string, in
 }
 
 func printHelp(command Command, err error, printUsage UsagePrinter) int {
-	var notValidArg ArgNotFoundError
-	var misplacedFlag MisplacedFlagError
-	if errors.As(err, &misplacedFlag) {
+	if _, ok := errors.AsType[MisplacedFlagError](err); ok {
 		ancli.Errf("%v", err.Error())
-	} else if errors.As(err, &notValidArg) {
+	} else if _, ok := errors.AsType[ArgNotFoundError](err); ok {
 		ancli.Errf("%v", err.Error())
 	} else if errors.Is(err, ErrNoArgs) {
 	} else if errors.Is(err, flag.ErrHelp) && command != nil {

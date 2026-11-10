@@ -4,7 +4,9 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"maps"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -48,26 +50,29 @@ type ArgCompleter interface {
 // NewCompletionCommand returns the built-in completion command Run
 // auto-registers, for apps that render their own command listings.
 func NewCompletionCommand(binName string) Command {
-	return &completionCommand{binName: binName}
+	return &completionCommand{binName: binName, out: os.Stdout}
 }
 
 // withCompletion returns a clone of commands with the built-in completion
-// command injected, unless the app defines the key itself.
-func withCompletion(binName string, commands map[string]Command) map[string]Command {
+// command, writing its script to out, injected, unless the app defines the
+// key itself.
+func withCompletion(binName string, commands map[string]Command, out io.Writer) map[string]Command {
 	if matchCommand("completion", commands) != nil {
 		return commands
 	}
 	cloned := make(map[string]Command, len(commands)+1)
 	maps.Copy(cloned, commands)
-	cloned["completion"] = &completionCommand{binName: binName}
+	cloned["completion"] = &completionCommand{binName: binName, out: out}
 	return cloned
 }
 
-func runComplete(words []string, commands map[string]Command) int {
+func runComplete(words []string, commands map[string]Command, out io.Writer) (int, error) {
 	for _, item := range completeWords(words, commands) {
-		fmt.Printf("%s\t%s\n", item.Value, item.Kind)
+		if _, err := fmt.Fprintf(out, "%s\t%s\n", item.Value, item.Kind); err != nil {
+			return 1, fmt.Errorf("write completion candidate: %w", err)
+		}
 	}
-	return 0
+	return 0, nil
 }
 
 // completeWords derives suggestions from the registered commands, their
@@ -221,6 +226,7 @@ func safeHook(fn func() []CompletionItem) (items []CompletionItem) {
 
 type completionCommand struct {
 	binName string
+	out     io.Writer
 	flagset *flag.FlagSet
 }
 
@@ -231,13 +237,17 @@ func (c *completionCommand) Run(context.Context) error {
 	if len(rest) == 0 {
 		return fmt.Errorf("usage: %v completion <bash|zsh>", c.binName)
 	}
+	var script string
 	switch rest[0] {
 	case "bash":
-		fmt.Print(bashCompletionScript(c.binName))
+		script = bashCompletionScript(c.binName)
 	case "zsh":
-		fmt.Print(zshCompletionScript(c.binName))
+		script = zshCompletionScript(c.binName)
 	default:
 		return fmt.Errorf("unsupported shell %q, usage: %v completion <bash|zsh>", rest[0], c.binName)
+	}
+	if _, err := io.WriteString(c.out, script); err != nil {
+		return fmt.Errorf("write %v completion script: %w", rest[0], err)
 	}
 	return nil
 }

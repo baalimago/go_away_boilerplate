@@ -56,21 +56,19 @@ func newChatTree() *chatTree {
 		flagSet:      flag.NewFlagSet("del", flag.ContinueOnError),
 	}
 	tr.chat = &mockSubcommander{
-		mockCommand: mockCommand{
-			describeFunc: func() string { return "manage chats" },
-			helpFunc:     func() string { return "chat help text" },
-			setupFunc: func() error {
-				tr.chatSetup = true
-				return nil
-			},
-			runFunc: func(context.Context) error {
-				tr.chatRan = true
-				tr.chatArgs = tr.chatFs.Args()
-				return nil
-			},
-			flagSet: tr.chatFs,
+		describeFunc: func() string { return "manage chats" },
+		helpFunc:     func() string { return "chat help text" },
+		setupFunc: func() error {
+			tr.chatSetup = true
+			return nil
 		},
-		subs: map[string]Command{"list|l": tr.list, "del": tr.del},
+		runFunc: func(context.Context) error {
+			tr.chatRan = true
+			tr.chatArgs = tr.chatFs.Args()
+			return nil
+		},
+		flagSet: tr.chatFs,
+		subs:    map[string]Command{"list|l": tr.list, "del": tr.del},
 	}
 	tr.commands = map[string]Command{
 		"chat|c": tr.chat,
@@ -206,18 +204,14 @@ func Test_Run_subcommanderDescent(t *testing.T) {
 			flagSet: flag.NewFlagSet("leaf", flag.ContinueOnError),
 		}
 		mid := &mockSubcommander{
-			mockCommand: mockCommand{
-				describeFunc: func() string { return "mid" },
-				flagSet:      flag.NewFlagSet("mid", flag.ContinueOnError),
-			},
-			subs: map[string]Command{"leaf": leaf},
+			describeFunc: func() string { return "mid" },
+			flagSet:      flag.NewFlagSet("mid", flag.ContinueOnError),
+			subs:         map[string]Command{"leaf": leaf},
 		}
 		top := &mockSubcommander{
-			mockCommand: mockCommand{
-				describeFunc: func() string { return "top" },
-				flagSet:      flag.NewFlagSet("top", flag.ContinueOnError),
-			},
-			subs: map[string]Command{"mid|m": mid},
+			describeFunc: func() string { return "top" },
+			flagSet:      flag.NewFlagSet("top", flag.ContinueOnError),
+			subs:         map[string]Command{"mid|m": mid},
 		}
 		code := Run(context.Background(), []string{"bin", "top", "m", "leaf"},
 			map[string]Command{"top": top}, "usage: %v")

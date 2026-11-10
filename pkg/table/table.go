@@ -134,6 +134,16 @@ func (t *Table[T]) WithWriter(w io.Writer) *Table[T] {
 	return t
 }
 
+// WithPrompter sets the function that shows the selection prompt line, before
+// each read, in place of writing it to the writer. It receives the line
+// without colour. An error it returns ends Run. It is meant for macro mode
+// (WithInput): interactive mode clears the writer's lines counting a prompt
+// line the writer did not receive.
+func (t *Table[T]) WithPrompter(show func(line string) error) *Table[T] {
+	t.t.prompter = show
+	return t
+}
+
 // WithActions adds additional table actions beyond the built-in
 // prev/next/back/quit.
 func (t *Table[T]) WithActions(actions ...TableAction) *Table[T] {
@@ -211,6 +221,7 @@ type table[T any] struct {
 	rowFormater                 func(int, T) (string, error)
 	tableActions                []TableAction
 	out                         io.Writer
+	prompter                    func(string) error
 	input                       io.Reader
 	theme                       Theme
 	header                      string
@@ -303,6 +314,12 @@ func (t *table[T]) print() (int, error) {
 			return 0, fmt.Errorf("failed to print row: %w", printErr)
 		}
 		amPrinted++
+	}
+	if t.prompter != nil {
+		if err := t.prompter(t.promptLine()); err != nil {
+			return 0, fmt.Errorf("failed to show prompt line: %w", err)
+		}
+		return amPrinted, nil
 	}
 	_, err = fmt.Fprint(t.out, Colorize(t.theme.Secondary, t.promptLine()))
 	if err != nil {

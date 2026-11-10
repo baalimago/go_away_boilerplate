@@ -2185,3 +2185,74 @@ func Test_fillRemainderOfTermWidthColored_edgeCases(t *testing.T) {
 		}
 	})
 }
+
+// promptRecorder is an input that records the prompts shown before each read.
+type promptRecorder struct {
+	in      io.Reader
+	prompts *[]string
+	atRead  []int
+}
+
+func (r *promptRecorder) Read(p []byte) (int, error) {
+	r.atRead = append(r.atRead, len(*r.prompts))
+	return r.in.Read(p)
+}
+
+func Test_Builder_prompterShowsThePromptLine(t *testing.T) {
+	t.Setenv("NO_COLOR", "")
+
+	var out bytes.Buffer
+	var prompts []string
+	input := &promptRecorder{in: strings.NewReader("x\n1\n"), prompts: &prompts}
+	got, _, err := New(
+		testPaginator{total: 2, items: []int{10, 20}},
+		func(i, item int) (string, error) { return fmt.Sprintf("%d=%d", i, item), nil },
+	).
+		WithHeader("test").
+		WithWriter(&out).
+		WithInput(input).
+		WithPrompter(func(line string) error {
+			prompts = append(prompts, line)
+			return nil
+		}).
+		Run()
+	if err != nil {
+		t.Fatalf("Run() unexpected error: %v", err)
+	}
+	if !reflect.DeepEqual(got, []int{1}) {
+		t.Fatalf("Run() = %v, want [1]", got)
+	}
+	want := []string{
+		"(select, [p]rev, [n]ext, [b]ack, [q]uit, [/] filter): ",
+		`(select, [p]rev, [n]ext, [b]ack, [q]uit, [/] filter, invalid selection "x": token: 'x' failed to parse to int: strconv.Atoi: parsing "x": invalid syntax): `,
+	}
+	if !reflect.DeepEqual(prompts, want) {
+		t.Fatalf("prompts = %q, want %q", prompts, want)
+	}
+	// Each read happens after its prompt was shown, never before.
+	if len(input.atRead) == 0 || input.atRead[0] != 1 {
+		t.Fatalf("prompts shown at the reads = %v, want the first prompt before the first read", input.atRead)
+	}
+	if strings.Contains(out.String(), "select") {
+		t.Fatalf("the prompt line also reached the writer: %q", out.String())
+	}
+	if !strings.Contains(out.String(), "0=10") || !strings.Contains(out.String(), "1=20") {
+		t.Fatalf("the rows did not reach the writer: %q", out.String())
+	}
+}
+
+func Test_Builder_prompterErrorEndsRun(t *testing.T) {
+	t.Setenv("NO_COLOR", "1")
+
+	boom := errors.New("prompt destination closed")
+	_, _, err := New(
+		testPaginator{total: 1, items: []int{10}},
+		func(i, item int) (string, error) { return fmt.Sprintf("%d=%d", i, item), nil },
+	).
+		WithInput(strings.NewReader("0\n")).
+		WithPrompter(func(string) error { return boom }).
+		Run()
+	if !errors.Is(err, boom) {
+		t.Fatalf("Run() error = %v, want the prompter's error", err)
+	}
+}

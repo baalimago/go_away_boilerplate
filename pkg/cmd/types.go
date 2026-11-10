@@ -77,11 +77,21 @@ type MisplacedFlagError struct {
 }
 
 func (e MisplacedFlagError) Error() string {
+	return e.Reason() + "\nHint: " + e.Hint() + "\n"
+}
+
+// Reason is the error without its hint.
+func (e MisplacedFlagError) Reason() string {
 	if e.Candidate != "" {
-		return fmt.Sprintf("'%v' is not a valid argument: it was read as the command name because '%v' is not a flag at this level.\nHint: '%v' belongs to %v — place it there, after that command.\n",
-			e.Candidate, e.Flag, e.Flag, quotedOwners(e.Owners))
+		return fmt.Sprintf("'%v' is not a valid argument: it was read as the command name because '%v' is not a flag at this level.", e.Candidate, e.Flag)
 	}
-	return fmt.Sprintf("%v\nHint: '%v' belongs to %v — place it there, after that command.\n", e.err, e.Flag, quotedOwners(e.Owners))
+	return fmt.Sprint(e.err)
+}
+
+// Hint says which command the flag belongs to, so a caller can show it apart
+// from the error.
+func (e MisplacedFlagError) Hint() string {
+	return fmt.Sprintf("'%v' belongs to %v — place it there, after that command.", e.Flag, quotedOwners(e.Owners))
 }
 
 // quotedOwners renders the owning command paths as a readable list:
@@ -104,6 +114,14 @@ func quotedOwners(owners []string) string {
 func (e MisplacedFlagError) Unwrap() error { return e.err }
 
 var ErrNoArgs = errors.New("no arguments found")
+
+// HelpRequestedError is RunSilent's answer to a help request (-h, -help).
+// Help is the text Run prints for it. It matches flag.ErrHelp.
+type HelpRequestedError struct{ Help string }
+
+func (e HelpRequestedError) Error() string { return "help requested" }
+
+func (e HelpRequestedError) Unwrap() error { return flag.ErrHelp }
 
 // ErrUserInitiatedExit signals that the user deliberately ended the
 // command (quit key, ctrl-c, "no thanks"). Run treats it as a clean,
