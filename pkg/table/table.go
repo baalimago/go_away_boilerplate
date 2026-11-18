@@ -128,6 +128,18 @@ func (t *Table[T]) WithStartPage(page int) *Table[T] {
 	return t
 }
 
+// WithFilter opens the table filtered as if the user had typed "/filter".
+// WithStartPage then counts pages of the filtered rows.
+func (t *Table[T]) WithFilter(filter string) *Table[T] {
+	t.t.filterString = filter
+	return t
+}
+
+// Filter is the text filter active when Run returned, empty when none was.
+func (t *Table[T]) Filter() string {
+	return t.t.filterString
+}
+
 // WithWriter sets the output writer. Default is io.Discard.
 func (t *Table[T]) WithWriter(w io.Writer) *Table[T] {
 	t.t.out = w
@@ -169,6 +181,13 @@ func (t *Table[T]) Run() ([]int, int, error) {
 	line := strings.Repeat("-", headerWidth)
 	fmt.Fprintf(t.t.out, "%v\n", Colorize(t.t.theme.Primary, line))
 
+	if t.t.filterString != "" {
+		startPage := t.t.page
+		if err := t.t.applyFilter(); err != nil {
+			return nil, t.t.page, fmt.Errorf("failed to apply the initial filter: %w", err)
+		}
+		t.t.page = startPage
+	}
 	t.t.lastPage = t.t.pageCount()
 	t.t.page = min(max(t.t.page, 0), t.t.lastPage)
 	baseActions := []TableAction{t.t.prevPage(), t.t.nextPage(), t.t.back(), t.t.quit()}
